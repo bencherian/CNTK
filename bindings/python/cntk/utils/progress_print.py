@@ -195,9 +195,9 @@ class ProgressPrinter(object):
                 self.epoch_start_time = epoch_end_time
             if with_metric:
                 if self.metric_is_pct:
-                    self.___logprint("Finished Epoch[{} of {}]: {}loss = {:0.6f} * {}, metric = {:0.1f}% * {} {:0.3f}s ({:5.1f} samples per second);".format(self.epochs, self.num_epochs, self.tag, avg_loss, samples, avg_metric*self.metric_multipleir, samples, time_delta, speed))
+                    self.___logprint("Finished Epoch[{} of {}]: {}loss = {:0.6f} * {}, metric = {:0.1f}% * {} {:0.3f}s ({:5.1f} samples per second);".format(self.epochs, self.num_epochs, self.tag, avg_loss, samples, avg_metric*self.metric_multiplier, samples, time_delta, speed))
                 else:
-                    self.___logprint("Finished Epoch[{} of {}]: {}loss = {:0.6f} * {}, metric = {:0.1f} * {} {:0.3f}s ({:5.1f} samples per second);".format(self.epochs, self.num_epochs, self.tag, avg_loss, samples, avg_metric*self.metric_multipleir, samples, time_delta, speed))
+                    self.___logprint("Finished Epoch[{} of {}]: {}loss = {:0.6f} * {}, metric = {:0.1f} * {} {:0.3f}s ({:5.1f} samples per second);".format(self.epochs, self.num_epochs, self.tag, avg_loss, samples, avg_metric*self.metric_multiplier, samples, time_delta, speed))
 
             else:
                 self.___logprint("Finished Epoch[{} of {}]: {}loss = {:0.6f} * {} {:0.3f}s ({:5.1f} samples per second);".format(self.epochs, self.num_epochs, self.tag, avg_loss, samples, time_delta, speed))
@@ -267,12 +267,12 @@ class ProgressPrinter(object):
                 first_mb = max(self.updates_since_start - self.freq + 1, self.first+1)
 
             if metric is not None:
-                if metric_is_pct:
+                if self.metric_is_pct:
                     self.___logprint(' Minibatch[{:4d}-{:4d}]: loss = {:0.6f} * {:d}, metric = {:0.1f}% * {:d};'.format(
-                        first_mb, self.updates_since_start, avg_loss, samples, avg_metric*metric_multiplier, samples))
+                        first_mb, self.updates_since_start, avg_loss, samples, avg_metric*self.metric_multiplier, samples))
                 else:
                     self.___logprint(' Minibatch[{:4d}-{:4d}]: loss = {:0.6f} * {:d}, metric = {:0.1f} * {:d};'.format(
-                        first_mb, self.updates_since_start, avg_loss, samples, avg_metric*metric_multiplier, samples))
+                        first_mb, self.updates_since_start, avg_loss, samples, avg_metric*self.metric_multiplier, samples))
 
             else:
                 self.___logprint(' Minibatch[{:4d}-{:4d}]: loss = {:0.6f} * {:d};'.format(
@@ -282,7 +282,7 @@ class ProgressPrinter(object):
                 # For logging to TensorBoard, we use self.total_updates as it does not reset after each epoch.
                 self.update_value('mb_avg_loss', avg_loss, self.total_updates)
                 if metric is not None:
-                    self.update_value('mb_avg_metric', avg_metric * metric_multiplier, self.total_updates)
+                    self.update_value('mb_avg_metric', avg_metric * self.metric_multiplier, self.total_updates)
 
     def update_with_trainer(self, trainer, with_metric=False):
         '''
