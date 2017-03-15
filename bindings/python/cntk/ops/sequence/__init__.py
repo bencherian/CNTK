@@ -3,7 +3,8 @@
 # for full license information.
 # ==============================================================================
 
-from ...utils import sanitize_input, get_data_type, typemap
+from ...utils import get_data_type
+from cntk.internal import typemap, sanitize_input
 
 ##########################################################################
 # sequence ops
@@ -83,6 +84,7 @@ def is_last(seq, name=''):
     seq = sanitize_input(seq, get_data_type(seq))
     return is_last(seq, name)
 
+
 @typemap
 def slice(seq, begin_index, end_index, name=''):
     '''
@@ -106,6 +108,7 @@ def slice(seq, begin_index, end_index, name=''):
     seq = sanitize_input(seq, get_data_type(seq))
     return sequence_slice(seq, begin_index, end_index, name)
 
+
 @typemap
 def first(seq, name=''):
     '''
@@ -117,9 +120,9 @@ def first(seq, name=''):
         >>> # create one sequence of 4 tensors each with shape (3,2)
         >>> x0 = np.reshape(np.arange(24.0,dtype=np.float32),(1,4,3,2))
         >>> y.eval({x:x0})
-        array([[[[ 0.,  1.],
+        array([[[ 0.,  1.],
                  [ 2.,  3.],
-                 [ 4.,  5.]]]], dtype=float32)
+                 [ 4.,  5.]]], dtype=float32)
 
     Args:
         seq: the symbolic tensor denoting a sequence
@@ -143,9 +146,9 @@ def last(seq, name=''):
         >>> # create one sequence of 4 tensors each with shape (3,2)
         >>> x0 = np.reshape(np.arange(24.0,dtype=np.float32),(1,4,3,2))
         >>> y.eval({x:x0})
-        array([[[[ 18.,  19.],
+        array([[[ 18.,  19.],
                  [ 20.,  21.],
-                 [ 22.,  23.]]]], dtype=float32)
+                 [ 22.,  23.]]], dtype=float32)
 
     Args:
         seq: the symbolic tensor denoting a sequence
@@ -203,6 +206,7 @@ def where(condition, name=''):
     from cntk.cntk_py import where
     condition = sanitize_input(condition, get_data_type(condition))
     return where(condition, name)
+
 
 @typemap
 def gather(seq, condition, new_sequence_axis_typeinfo=None, name=''):
@@ -353,6 +357,7 @@ def broadcast_as(operand, broadcast_as_operand, name=''):
         broadcast_as_operand, get_data_type(broadcast_as_operand))
     return broadcast_as(operand, broadcast_as_operand, name)
 
+
 @typemap
 def reduce_sum(seq, name=''):
     '''
@@ -364,9 +369,9 @@ def reduce_sum(seq, name=''):
         >>> x0 = np.reshape(np.arange(24.0,dtype=np.float32),(1,4,3,2))
         >>> y = C.sequence.reduce_sum(x)
         >>> y.eval({x:x0})
-        array([[[[ 36.,  40.],
+        array([[[ 36.,  40.],
                  [ 44.,  48.],
-                 [ 52.,  56.]]]], dtype=float32)
+                 [ 52.,  56.]]], dtype=float32)
 
     Args:
         seq: sequence input tensor
