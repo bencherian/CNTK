@@ -6,14 +6,15 @@
 
 import numpy as np
 from cntk import *
+from cntk.layers import *
 from cntk.layers.typing import *
 
 # Note: We do not test gradients here, assuming that those are tested elsewhere.
 # Forward outputs are tested to verify that the structure of the layer is as expected.
 
 def test_layers_name(device_id):
-    from cntk import placeholder_variable
-    I = placeholder_variable(name='input')
+    from cntk import placeholder
+    I = placeholder(name='input')
     p = Dense(10, name='dense10')(I)
     assert(I.name == 'input')
     assert(p.root_function.name == 'dense10')
@@ -64,7 +65,7 @@ def test_Function(device_id):
     def f(x):
         return x * x
     assert f.shape == (-2,)
-    #assert f.op_name == 'Square'   # BUGBUG: op_name is 'CompositeFunctionOpName'
+    assert f.root_function.op_name == 'Square'
     assert f.name == 'block_name'
 
     ####################################################
@@ -151,7 +152,7 @@ def test_recurrence_fun(device_id):
     # Test 1: sum-reduction over sequence
     ####################################################
     r = Fold(plus)
-    r.update_signature(1)
+    r.update_signature(Sequence[Tensor[1]])
     data = [np.array([[2], [6], [4], [8], [6]])]   # simple sequence
     out = r(data)
     exp = [sum(data[0])]
@@ -161,7 +162,7 @@ def test_recurrence_fun(device_id):
     # Test 2: max-pool over sequence
     ####################################################
     r = Fold(element_max)
-    r.update_signature(2)
+    r.update_signature(Sequence[Tensor[2]])
     data = [np.array([[2,1], [6,3], [4,2], [8,1], [6,0]])]   # simple sequence
     out = r(data)
     exp = [np.max(data[0], axis=0)]
@@ -183,11 +184,11 @@ def test_unfold(device_id):
     ####################################################
     # Test 1: simple unfold
     ####################################################
-    UF = UnfoldFrom(double_up, initial_state=1)
+    UF = UnfoldFrom(double_up)
     @Function
     @Signature(Sequence[Tensor[1]])
     def FU(x):
-        return UF(x)
+        return UF(Constant(1), x)
     r = FU(x)
     exp = [[[ 2 ], [ 4 ], [ 8 ]],
            [[ 2 ], [ 4 ], [ 8 ], [ 16 ], [ 32 ]]]
@@ -196,11 +197,11 @@ def test_unfold(device_id):
     ####################################################
     # Test 2: unfold with length increase and terminating condition
     ####################################################
-    UF = UnfoldFrom(double_up, until_predicate=lambda x: greater(x, 63),  initial_state=1, length_increase=1.6)
+    UF = UnfoldFrom(double_up, until_predicate=lambda x: greater(x, 63), length_increase=1.6)
     @Function
     @Signature(Sequence[Tensor[1]])
     def FU(x):
-        return UF(x)
+        return UF(Constant(1), x)
     r = FU(x)
     exp = [[[ 2 ], [ 4 ], [ 8 ], [ 16 ], [ 32 ]],         # tests length_increase
            [[ 2 ], [ 4 ], [ 8 ], [ 16 ], [ 32 ], [ 64 ]]] # tests early cut-off due to until_predicate
@@ -213,7 +214,7 @@ def test_unfold(device_id):
 ####################################
 
 def test_layers_dense(device_id):
-    y = Input(2)
+    y = input(2)
     dat = np.array([[-1., 1.]], dtype=np.float32)
 
     ####################################################
@@ -225,7 +226,7 @@ def test_layers_dense(device_id):
     npout = np.matrix(dat[0]) * p.foo.W.value + p.foo.b.value
     print(res[0])
     print(npout)
-    np.testing.assert_array_equal(res[0], npout, err_msg='Error in dense layer')
+    np.testing.assert_array_equal(res, npout, err_msg='Error in dense layer')
 
     ####################################################
     # Test 2: with activation
@@ -240,7 +241,7 @@ def test_layers_dense(device_id):
     print(res[0])
     print(npout)
 
-    np.testing.assert_array_almost_equal(res[0], npout, decimal=7, err_msg='Error in dense layer with sigmoid')
+    np.testing.assert_array_almost_equal(res, npout, decimal=7, err_msg='Error in dense layer with sigmoid')
 
     ####################################################
     # Test 3: 2-dense layer
@@ -252,14 +253,14 @@ def test_layers_dense(device_id):
     npout1 = np.matrix(dat[0]) * p.foo.W.value + p.foo.b.value
     npout = npout1 * q.bar.W.value + q.bar.b.value
 
-    np.testing.assert_array_almost_equal(res[0], npout, decimal=7, err_msg='Error in 2-dense layer')
+    np.testing.assert_array_almost_equal(res, npout, decimal=7, err_msg='Error in 2-dense layer')
 
 ########################################
 # Test Embedding layer for correctness
 ########################################
 def test_layers_embedding(device_id):
     embDim = 3
-    y = Input(2)
+    y = input(2)
 
     # embedding base case
     e = Embedding(shape=embDim, name='foo')
@@ -268,7 +269,7 @@ def test_layers_embedding(device_id):
     res = e(y).eval({y: dat})
 
     npout = np.matrix(dat[0]) * e.E.value
-    np.testing.assert_array_equal(res[0], npout, err_msg='Error in embedding layer')
+    np.testing.assert_array_equal(res, npout, err_msg='Error in embedding layer')
 
     # embedding, initialized from a user-supplied starting point for the parameter
     e = Embedding(embDim, init=[[1, 3, 2], [3, 4, 1]], name='bar')
@@ -277,7 +278,7 @@ def test_layers_embedding(device_id):
     res = e(y).eval({y: dat})
 
     npout = np.matrix(dat[0]) * e.E.value
-    np.testing.assert_array_equal(res[0], npout, err_msg='Error in constant embedding layer')
+    np.testing.assert_array_equal(res, npout, err_msg='Error in constant embedding layer')
 
     # embedding, initialized from a user-supplied constant weight table
     e = Embedding(weights=[[1, 3, 2], [3, 4, 1]], name='baz')
@@ -286,7 +287,7 @@ def test_layers_embedding(device_id):
     res = e(y).eval({y: dat})
 
     npout = np.matrix(dat[0]) * e.E.value
-    np.testing.assert_array_equal(res[0], npout, err_msg='Error in constant embedding layer')
+    np.testing.assert_array_equal(res, npout, err_msg='Error in constant embedding layer')
 
 ########################################
 # Test Convolutional layer for shape correctness
@@ -319,7 +320,7 @@ def test_layers_convolution_shape(device_id):
     # p: number of zero padding
     # s: strides
     inC, inH, inW = 2, 6, 7
-    y = Input((inC, inH, inW))
+    y = input((inC, inH, inW))
     in_filter_shape = (3, 2)
     out_num_filters = 4
 
@@ -408,7 +409,7 @@ def test_layers_convolution_shape(device_id):
     np.testing.assert_array_equal(model_shape, expected_shape, \
         "Error in convolution with stride > 1 and padding")
 
-def  test_layers_convolution_value(device_id):
+def test_layers_convolution_value(device_id):
 
     # Common parameters
     inC, inH, inW = 1, 3, 3
@@ -419,7 +420,7 @@ def  test_layers_convolution_value(device_id):
     ##########################################################
     # Test convolutional layer for correctness (p=False s = 1)
     ##########################################################
-    y = Input((inC, inH, inW))
+    y = input((inC, inH, inW))
     zeropad = False
     in_strides = 1
 
@@ -433,7 +434,7 @@ def  test_layers_convolution_value(device_id):
     # Extract the W weight matrix
     expected_res = np.sum(getattr(model, 'foo').parameters[0].value)
 
-    np.testing.assert_array_almost_equal(res[0][0][0][0][0], expected_res, decimal=7, \
+    np.testing.assert_array_almost_equal(res[0][0][0][0], expected_res, decimal=7, \
         err_msg="Error in convolution computation with stride = 1 and zeropad = False")
 
     ##########################################################
@@ -452,7 +453,7 @@ def  test_layers_convolution_value(device_id):
     # Extract the W weight matrix
     expected_res = np.sum(getattr(model, 'foo').parameters[0].value)
 
-    np.testing.assert_array_almost_equal(res[0][0][0][0][0], expected_res, decimal=7, \
+    np.testing.assert_array_almost_equal(res[0][0][0][0], expected_res, decimal=7, \
         err_msg="Error in convolution computation with stride = 2 and zeropad = False")
 
     ##########################################################
@@ -472,7 +473,7 @@ def  test_layers_convolution_value(device_id):
     expected_res = np.sum(getattr(model, 'foo').parameters[0].value)
 
     # Compare the center of the res with the sum of the weights
-    np.testing.assert_array_almost_equal(res[0][0][0][1][1], expected_res, decimal=7, \
+    np.testing.assert_array_almost_equal(res[0][0][1][1], expected_res, decimal=7, \
         err_msg="Error in convolution computation with stride = 1 and zeropad = True")
 
     ##########################################################
@@ -493,15 +494,15 @@ def  test_layers_convolution_value(device_id):
     expected_res = np.sum(W[0][0][1:,1:])
 
     # Compare the center of the res with the sum of the weights
-    np.testing.assert_array_almost_equal(res[0][0][0][0][0], expected_res, decimal=5,
+    np.testing.assert_array_almost_equal(res[0][0][0][0], expected_res, decimal=5,
         err_msg="Error in convolution computation with stride = 1 and zeropad = True")
 
 ##########################################################
 # Test convolutional 3D layer for correctness (p=False s = 1)
 ##########################################################
-def  test_layers_convolution_3d(device_id):
+def test_layers_convolution_3d(device_id):
     inC, inH, inW, inD = 1, 3, 3, 3
-    y = Input((inC,inH, inW, inD))
+    y = input((inC,inH, inW, inD))
     dat = np.ones([1, inC, inH, inW, inD], dtype = np.float32)
 
     model = Convolution3D((3, 3, 3),
@@ -519,7 +520,7 @@ def  test_layers_convolution_3d(device_id):
 
     expected_res = np.sum(getattr(model, 'foo').parameters[0].value)
 
-    np.testing.assert_array_almost_equal(res[0][0][0][0][0][0], expected_res, decimal=5, \
+    np.testing.assert_array_almost_equal(res[0][0][0][0][0], expected_res, decimal=5, \
         err_msg="Error in convolution3D computation with stride = 1 and zeropad = True")
 
 ##########################################################
@@ -527,7 +528,7 @@ def  test_layers_convolution_3d(device_id):
 ##########################################################
 def test_layers_convolution_2d(device_id):
     inC, inH, inW = 1, 3, 3
-    y = Input((inC,inH, inW))
+    y = input((inC,inH, inW))
 
     dat = np.ones([1, inC, inH, inW], dtype = np.float32)
 
@@ -545,7 +546,7 @@ def test_layers_convolution_2d(device_id):
 
     expected_res = np.sum(getattr(model, 'foo').parameters[0].value)
 
-    np.testing.assert_array_almost_equal(res[0][0][0][0][0], expected_res, decimal=5, \
+    np.testing.assert_array_almost_equal(res[0][0][0][0], expected_res, decimal=5, \
         err_msg="Error in convolution2D computation with stride = 1 and zeropad = True")
 
 ####################################
@@ -553,12 +554,35 @@ def test_layers_convolution_2d(device_id):
 ####################################
 
 def test_sequential_convolution_without_reduction_dim(device_id):
-    c = Convolution(3, init=np.array([4, 2, 1]), sequential=True, pad=False, reduction_rank=0, bias=False)
-    c.update_signature(()) # input is a sequence of scalars
-    data = [np.array([2, 6, 4, 8, 6])]   # like a short audio sequence, in the dynamic dimension
+    c = Convolution(3, init=np.array([4., 2., 1.], dtype=np.float32), sequential=True, pad=False, reduction_rank=0, bias=False)
+    c.update_signature(Sequence[Tensor[()]])  # input is a sequence of scalars
+    data = [np.array([2., 6., 4., 8., 6.])]   # like a short audio sequence, in the dynamic dimension
     out = c(data)
-    exp = [[24, 40, 38]]
+    exp = [[24., 40., 38.]]
     np.testing.assert_array_equal(out, exp, err_msg='Error in sequential convolution without reduction dimension')
+
+    c = Convolution(3, init=np.array([4., 2., 1.], dtype=np.float32), sequential=True, pad=False, reduction_rank=0, bias=False)
+    c.update_signature(Sequence[Tensor[1]]) # input is a sequence of dim-1 vectors
+    data = [np.array([[2.], [6], [4.], [8.], [6.]])]
+    out = c(data)
+    exp = [[[24.], [40.], [38]]] # not reducing; hence, output is also a sequence of dim-1 vectors
+    np.testing.assert_array_equal(out, exp, err_msg='Error in sequential convolution without reduction dimension')
+
+    # these cases failed before
+    emb_dim = 10
+    x = input(**Sequence[Tensor[20]])
+    m = Embedding(emb_dim)(x)
+    m = Convolution(filter_shape=3, sequential=True)(m)
+
+    # this one still fails
+    # Reshape: Operand (sub-)dimensions '[3]' incompatible with desired replacement (sub-)dimensions '[]'. Number of elements must be the same..
+    m = Embedding(emb_dim)(x)
+    m = reshape(m, (emb_dim,1))
+    m = Convolution(filter_shape=(3,1), num_filters=13, pad=True, sequential=True)(m)
+
+    m = Embedding(emb_dim)(x)
+    m = Convolution(filter_shape=3, pad=True, sequential=True)(m)
+
 
 ####################################
 # 1D convolution without reduction dimension
@@ -566,11 +590,10 @@ def test_sequential_convolution_without_reduction_dim(device_id):
 
 def test_1D_convolution_without_reduction_dim(device_id):
     c = Convolution1D(3, init=np.array([4, 2, 1]), pad=True, reduction_rank=0, bias=False)
-    ## BUGBUG: pad seems ignored? It looks like auto_padding=(False, False, True) gets passed on as m_audoPad = { false, false, true }
     c.update_signature(5)
     data = [np.array([[2, 6, 4, 8, 6]])]   # like a audio sequence, in a static dimension
     out = c(data)
-    exp = [[[24, 40, 38]]]
+    exp = [[10, 24, 40, 38, 44]]
     np.testing.assert_array_equal(out, exp, err_msg='Error in 1D convolution without reduction dimension')
 
 ##########################################################
@@ -588,7 +611,7 @@ def test_layers_conv_pool_unpool_deconv(device_id):
     pass
 #    inC, inH, inW = 1,4,4
 #
-#    y = Input((inC,inH, inW))
+#    y = input((inC,inH, inW))
 #
 #    cMap =1
 #
@@ -628,7 +651,7 @@ def test_layers_conv_pool_unpool_deconv(device_id):
 ##########################################################
 def test_layers_dropout(device_id):
     dat = np.array([[1., 1., 1., 1.]], dtype=np.float32)
-    y = Input(4)
+    y = input(4)
     p = Dense(1, activation=None, name='foo')(y)
     z = Dropout(0.75, name='bar')(p)
 
@@ -642,21 +665,21 @@ def test_layers_dropout(device_id):
 # Test for Stabilizer
 ##########################################################
 def test_layers_stabilizer(device_id):
-    y = Input(4)
+    y = input(4)
     p = Stabilizer()(y)
 
     dat = np.array([[1.0,2.0,3.0,4.0]], dtype=np.float32)
     res = p(y).eval({y: dat})
 
     # a stabilizer starts with having no effect, hence input=output
-    np.testing.assert_array_almost_equal(res[0], dat, decimal=6, \
+    np.testing.assert_array_almost_equal(res, dat, decimal=6, \
         err_msg="Error in layer normalization computation")
 
 ##########################################################
 # Test for LayerNormalization
 ##########################################################
 def test_layers_layer_normalization(device_id):
-    y = Input(4)
+    y = input(4)
     p = LayerNormalization(name='foo')(y)
 
     dat = np.array([[1.0,2.0,3.0,4.0]], dtype=np.float32)
@@ -667,7 +690,7 @@ def test_layers_layer_normalization(device_id):
     std = np.sqrt(np.mean(x*x))
     epsilon = 0.00001
 
-    np.testing.assert_array_almost_equal(res[0], x/(std + epsilon), decimal=6, \
+    np.testing.assert_array_almost_equal(res, x/(std + epsilon), decimal=6, \
         err_msg="Error in layer normalization computation")
 
 ##########################################################
@@ -677,7 +700,7 @@ def test_layers_layer_normalization(device_id):
 def test_layers_batch_normalization(device_id):
     pass
 #    dat = np.array([[1.0,0.5,1.0,0.5]], dtype=np.float32)
-#    y = Input(4)
+#    y = input(4)
 #    p = BatchNormalization(init_scale=2
 #                                     normalization_time_constant=0,
 #                                     name ='foo')(y)

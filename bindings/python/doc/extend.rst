@@ -75,10 +75,11 @@ In case, the operator is initialized with multiple inputs, ``forward()`` 's
             # result would actually look like (considering broadcasting, etc.).
             return [output_variable(self.inputs[0].shape, self.inputs[0].dtype, self.inputs[0].dynamic_axes)]
 
-If more than one input requires gradient calculation, ``backward()`` is invoked
+If the UserFunction has more than one input, ``backward()`` is invoked
 with an additional ``variables`` argument, which contains a dictionary of
 Variable to the gradient data, whose values have to be set with the proper
-gradients::
+gradients. If the gradient is not to be propagated to a particular input,
+the value for that input's gradient can be left None::
 
     def backward(self, state, root_gradients, variables):
         for var in variables:
@@ -185,10 +186,7 @@ computation can be moved to the constructor::
             self.new_p = {}
             self.grad_input = {}
 
-            # we just need the batch axis
-            ba = Axis.default_batch_axis()
-
-            self.sample_count_input = input_variable((), dynamic_axes=[ba], name='count')
+            self.sample_count_input = cntk.input((), name='count')
 
             lr = lr_schedule[0]  # assuming constant learning rate
             eta = lr / self.sample_count_input
@@ -196,7 +194,7 @@ computation can be moved to the constructor::
             # we need one graph per parameter shape
             for param in parameters:
                 p_shape = param.shape
-                self.grad_input[p_shape] = input_variable(p_shape, dynamic_axes=[ba])
+                self.grad_input[p_shape] = cntk.input(p_shape)
                 self.new_p[p_shape] = param - eta * self.grad_input[p_shape]
 
         def update(self, gradient_values, training_sample_count, sweep_end):

@@ -18,6 +18,9 @@
 #include "BlockFunction.h"
 #include "CompositeFunction.h"
 #include "SpecialPurposeNodes.h"
+#include "ConvolveGeometry.h"
+#include "ConvolutionalNodes.h"
+#include "Variable.h"
 
 using namespace Microsoft::MSR::CNTK;
 
@@ -37,6 +40,7 @@ namespace CNTK
 
     // Names of the various attributes of CNTK primitive Functions
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameAxis = L"axis";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameAxisVec = L"axisVec";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameAxis1 = L"axis1";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameAxis2 = L"axis2";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameAllowDuplicates = L"allowDuplicates";
@@ -54,6 +58,7 @@ namespace CNTK
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameLowerPad = L"lowerPad";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameUpperPad = L"upperPad";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameCeilOutDim = L"ceilOutDim";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameIncludePad = L"includePad";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameTranspose = L"transpose";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameOutputShape = L"outputShape";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameMaxTempMemSizeInSamples = L"maxTempMemSizeInSamples";
@@ -69,7 +74,9 @@ namespace CNTK
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameNewSequenceAxisLengthScalingFactor = L"newSequenceAxisLengthScalingFactor";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameNewSequenceAxisLengthAdditiveFactor = L"newSequenceAxisLengthAdditiveFactor";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameBeginIndex = L"beginIndex";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameBeginIndexVec = L"beginIndexVec";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameEndIndex = L"endIndex";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameEndIndexVec = L"endIndexVec";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameReductionOpName = L"reductionOpName";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameBidirectional = L"bidirectional";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameNumLayers = L"numLayers";
@@ -85,6 +92,9 @@ namespace CNTK
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameTokensToIgnore = L"TokensToIgnore";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameDelayConstraint = L"DelayConstraint";
     /*static*/ const std::wstring PrimitiveFunction::AttributeNameBlankTokenId = L"BlankTokenId";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameNumClass = L"numClass";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameOneHotOutputSparse = L"oneHotOutputSparse";
+    /*static*/ const std::wstring PrimitiveFunction::AttributeNameOneHotAxis = L"onehotAxis";
 
     /*static*/ DataType PrimitiveFunction::GetOutputDataType(PrimitiveOpType op, std::vector<Variable>& inputs, bool inferDimensions)
     {
@@ -250,11 +260,12 @@ namespace CNTK
         if (m_op == PrimitiveOpType::Combine)
             outputs.assign(m_inputs.begin(), m_inputs.end());
         else if (m_op == PrimitiveOpType::NoOp)
-            outputs.push_back(OutputVariable(m_inputs[0].Shape(), m_inputs[0].GetDataType(), m_inputs[0].DynamicAxes(), Name()));
+            outputs.push_back(OutputVariable(m_inputs[0].Shape(), m_inputs[0].GetDataType(), m_inputs[0].DynamicAxes(), m_inputs[0].NeedsGradient(), Name()));
         else
         {
             DataType outputDataType = GetOutputDataType(m_op, m_inputs, true);
             std::vector<Axis> outputDynamicAxes = GetOutputDynamicAxes(m_op, m_inputs, this, m_attributes);
+            bool needsGradient = std::any_of(m_inputs.begin(), m_inputs.end(), [](const Variable& input) { return input.NeedsGradient(); });
 
             NDShape outputShape = NDShape::Unknown;
             bool allInputShapesUnknown = (std::find_if(m_inputs.begin(), m_inputs.end(), [](const Variable& input) { return !input.Shape().IsUnknown(); }) == m_inputs.end());
@@ -365,34 +376,57 @@ namespace CNTK
                         case PrimitiveOpType::Slice:
                         {
                             assert(m_inputs.size() == 1);
-                            auto axis = NormalizeStaticAxis(m_attributes[PrimitiveFunction::AttributeNameAxis].Value<Axis>(), m_inputs[0].Shape());
 
-                            auto beginIndex = m_attributes[PrimitiveFunction::AttributeNameBeginIndex].Value<int>();
-                            auto endIndex = m_attributes[PrimitiveFunction::AttributeNameEndIndex].Value<int>();
-                            if (!axis.IsStaticAxis())
-                                LogicError("Function '%S': Built-in Slice operation currently does not support slicing along dynamic axis.", AsString().c_str());
+                            std::vector<Axis> axis;
+                            std::vector<int> beginIndex, endIndex; 
+                            if (m_attributes.Contains(PrimitiveFunction::AttributeNameAxisVec) &&
+                                m_attributes.Contains(PrimitiveFunction::AttributeNameBeginIndexVec) &&
+                                m_attributes.Contains(PrimitiveFunction::AttributeNameEndIndexVec))
+                            {
+                                auto &axisDictionary = m_attributes[PrimitiveFunction::AttributeNameAxisVec].Value<std::vector<DictionaryValue>>();
+                                for (auto& value : axisDictionary)
+                                    axis.push_back(NormalizeStaticAxis(value.Value<Axis>(), m_inputs[0].Shape())); 
 
-                            VerifyStaticAxis(axis, m_inputs[0].Shape());
-
-                            size_t sliceAxisDim = m_inputs[0].Shape()[axis.StaticAxisIndex()];
-                            int realBeginIndex = (beginIndex >= 0) ? beginIndex : beginIndex + sliceAxisDim;
-                            int realEndIndex = (endIndex > 0) ? endIndex : endIndex + sliceAxisDim;
-                            if ((sliceAxisDim < realEndIndex) || (realEndIndex < realBeginIndex) || (realBeginIndex < 0))
-                                RuntimeError("Function '%S': Slice operation index range [%d,%d), interpreted as [%d,%d), is invalid for input '%S' shape '%S'.",
-                                    AsString().c_str(),
-                                    beginIndex,
-                                    endIndex,
-                                    realBeginIndex,
-                                    realEndIndex,
-                                    m_inputs[0].AsString().c_str(),
-                                    m_inputs[0].Shape().AsString().c_str());
+                                beginIndex = AsVector<int>(m_attributes[PrimitiveFunction::AttributeNameBeginIndexVec].Value<std::vector<DictionaryValue>>());
+                                endIndex = AsVector<int>(m_attributes[PrimitiveFunction::AttributeNameEndIndexVec].Value<std::vector<DictionaryValue>>());
+                            }
+                            else if (m_attributes.Contains(PrimitiveFunction::AttributeNameAxis) &&
+                                m_attributes.Contains(PrimitiveFunction::AttributeNameBeginIndex) &&
+                                m_attributes.Contains(PrimitiveFunction::AttributeNameEndIndex))
+                            {
+                                axis.push_back(NormalizeStaticAxis(m_attributes[PrimitiveFunction::AttributeNameAxis].Value<Axis>(), m_inputs[0].Shape()));
+                                beginIndex.push_back(m_attributes[PrimitiveFunction::AttributeNameBeginIndex].Value<int>());
+                                endIndex.push_back(m_attributes[PrimitiveFunction::AttributeNameEndIndex].Value<int>());
+                            }
+                            else
+                            {
+                                RuntimeError("Function '%S': Slice operation with inconsistent attributes", AsString().c_str());
+                            }
 
                             auto outputTensorShape = AsTensorShape(m_inputs[0].Shape());
+                            for (auto i = 0; i < axis.size(); i++)
+                            {
+                                auto& ax = axis[i];
+                                if (!ax.IsStaticAxis())
+                                    LogicError("Function '%S': Built-in Slice operation currently does not support slicing along dynamic axis.", AsString().c_str());
+                                VerifyStaticAxis(ax, m_inputs[0].Shape());
 
-                            // propagate as much as we can
-                            if ((axis.StaticAxisIndex() < (int)outputTensorShape.GetRank()) && (0 <= realBeginIndex) && (realBeginIndex <= realEndIndex) && (realEndIndex <= sliceAxisDim))
-                                outputTensorShape.NarrowTo(axis.StaticAxisIndex(), realBeginIndex, realEndIndex);
-
+                                size_t sliceAxisDim = m_inputs[0].Shape()[ax.StaticAxisIndex()];
+                                int realBeginIndex = (beginIndex[i] >= 0) ? beginIndex[i] : beginIndex[i] + sliceAxisDim;
+                                int realEndIndex = (endIndex[i] > 0) ? endIndex[i] : endIndex[i] + sliceAxisDim;
+                                if ((sliceAxisDim < realEndIndex) || (realEndIndex < realBeginIndex) || (realBeginIndex < 0))
+                                    RuntimeError("Function '%S': Slice operation index range [%d,%d), interpreted as [%d,%d), is invalid for input '%S' shape '%S'.",
+                                        AsString().c_str(),
+                                        beginIndex[i],
+                                        endIndex[i],
+                                        realBeginIndex,
+                                        realEndIndex,
+                                        m_inputs[0].AsString().c_str(),
+                                        m_inputs[0].Shape().AsString().c_str());
+                                // propagate as much as we can
+                                if ((ax.StaticAxisIndex() < (int)outputTensorShape.GetRank()) && (0 <= realBeginIndex) && (realBeginIndex <= realEndIndex) && (realEndIndex <= sliceAxisDim))
+                                    outputTensorShape.NarrowTo(ax.StaticAxisIndex(), realBeginIndex, realEndIndex);
+                            }
                             outputShape = AsNDShape(outputTensorShape, /*allowNonFlattenableTensorShapes = */ true);
                             break;
                         }
@@ -504,6 +538,33 @@ namespace CNTK
                             assert(m_inputs.size() == 1);
                             outputShape = { 1 };
                             break;
+                        case PrimitiveOpType::OneHot:
+                        {
+                            assert(m_inputs.size() == 1);
+                            auto num_class = m_attributes[PrimitiveFunction::AttributeNameNumClass].Value<size_t>();
+
+                            auto inputShape = m_inputs[0].Shape();
+                            auto fakeShape = inputShape.AppendShape({num_class});
+                            auto axis = NormalizeStaticAxis(m_attributes[PrimitiveFunction::AttributeNameOneHotAxis].Value<Axis>(), fakeShape);
+                            if (!axis.IsStaticAxis())
+                                LogicError("Function '%S': one hot operation currently does not support on dynamic axis", AsString().c_str());
+
+                            size_t len = inputShape.Rank();
+                            int axisIndex = axis.StaticAxisIndex();
+
+                            outputShape = {};
+                            if (axisIndex > 0)
+                            {
+                                outputShape = outputShape.AppendShape(inputShape.SubShape(0, axisIndex));
+                            }
+                            outputShape = outputShape.AppendShape({num_class});
+                            if (axisIndex < len)
+                            {
+                                outputShape = outputShape.AppendShape(inputShape.SubShape(axisIndex, len));
+                            }
+
+                            break;
+                        }
                         case PrimitiveOpType::Times:
                         {
                             assert(m_inputs.size() == 2);
@@ -772,7 +833,7 @@ namespace CNTK
                 }
             }
 
-            outputs.push_back({ OutputVariable(outputShape, outputDataType, outputDynamicAxes, Name().empty() ? L"" : Name()) });
+            outputs.push_back({ OutputVariable(outputShape, outputDataType, outputDynamicAxes, needsGradient, Name().empty() ? L"" : Name()) });
         }
     }
 
@@ -899,7 +960,7 @@ namespace CNTK
 
         if (version < 4 && op == PrimitiveOpType::BatchNormalization)
         {
-            if (Internal::GetComputationNetworkTraceLevel() > 0)
+            if (GetTraceLevel() >= TraceLevel::Warning)
             {
                 // TODO: all logging functionality should be refactored to live in a logging utility class. 
                 fprintf(stderr, "WARNING: the dictionary (version=%zu) does not contain a required "
@@ -917,5 +978,119 @@ namespace CNTK
         
         return std::shared_ptr<PrimitiveFunction>(new PrimitiveFunction(op, inputs, std::move(attributes), name, uid), 
                                                   [](PrimitiveFunction* ptr) { delete ptr; });
+    }
+
+    static const vector<wstring> s_stateAttributes = { PrimitiveFunction::AttributeNameRngSeed, PrimitiveFunction::AttributeNameRngOffset };
+
+    Dictionary PrimitiveFunction::GetState() const
+    {
+        if (!IsStateful())
+            LogicError("Function '%S' is not stateful.", AsString().c_str());
+     
+        Dictionary state;
+        for (auto& key : s_stateAttributes)
+        {
+            state[key] = m_attributes[key];
+        }
+
+        return state;
+    }
+
+    void PrimitiveFunction::SetState(const Dictionary& state)
+    {
+        if (!IsStateful())
+            LogicError("Function '%S' is not stateful.", AsString().c_str());
+
+        for (auto& key : s_stateAttributes)
+        {
+            m_attributes[key] = state[key];
+        }
+    }
+
+    /*static*/ void PrimitiveFunction::FixNDShape(size_t filterRank, size_t inputRank, NDShape& shape, size_t deflt, const NDShape& from/* = NDShape()*/)
+    {
+        auto dims = shape.Dimensions();
+        Microsoft::MSR::CNTK::ConvolutionNodeBase<float>::FixVectorShape(filterRank, inputRank, dims, deflt, from.Dimensions());
+        shape = NDShape(dims);
+    }
+
+    NDShape PrimitiveFunction::ConvolutionOpOutputShape(PrimitiveOpType op, const NDShape& operandShape, NDShape& kernelShape, NDShape& outputMapCount, NDShape& strides,
+        std::vector<bool>& sharing, std::vector<bool>& autoPad, NDShape& lowerPad, NDShape& upperPad,
+        bool transpose, bool inferDimensions, bool ceilOutputDim/* = false*/) const
+    {
+        if (inferDimensions)
+        {
+            size_t inputRank = operandShape.Rank();
+
+            // Unknown kernel shape valid only for pooling, however, the shape should have expanded before
+            // this call.
+            if (kernelShape == NDShape::Unknown)
+                RuntimeError("Convolution: Kernel shape can't be Unknown.");
+
+            // infer reduction dimensions if not given
+            // If kernel has a lower rank than the input then the remaining dimensions are to be reduced over.
+            size_t filterRank = kernelShape.Rank();
+
+            // If the trailing axis dimensionality of the kernel shape is NDShape::InferredDimension, we reduce over it by 
+            // picking the corresponding operand shape dimensionality
+            // This is done by shrinking the filter rank and let the dimensions be inferred from the operand's shape
+            // TODO: Should we do this for all of the axes in kernelShape that have a dimensionailty of NDShape::InferredDimension?
+            if (kernelShape[filterRank - 1] == NDShape::InferredDimension)
+            {
+                filterRank--;
+                kernelShape = kernelShape.SubShape(0, filterRank);
+            }
+
+            NDShape fromShape;
+            if (op == PrimitiveOpType::Convolution)
+                fromShape = operandShape;
+
+            size_t fillRank = (!transpose) ? filterRank : filterRank - 1;
+            FixNDShape(fillRank, inputRank, kernelShape, 1, fromShape); // convolve over red dim; pool over 1
+            FixNDShape(fillRank, inputRank, strides, 1, fromShape); // stride for reduction dims is red dim or 1
+            FixNDShape(fillRank, inputRank, lowerPad, 0);
+            FixNDShape(fillRank, inputRank, upperPad, 0);
+            Microsoft::MSR::CNTK::ConvolutionNodeBase<float>::FixVectorShape(fillRank, inputRank, sharing, true);
+            Microsoft::MSR::CNTK::ConvolutionNodeBase<float>::FixVectorShape(fillRank, inputRank, autoPad, false); // no padding for reduction dims
+        }
+
+        decltype(&Microsoft::MSR::CNTK::ConvolveGeometry::ComputeOutputShape) computeOutputShapeFunc;
+        if (!transpose)
+            computeOutputShapeFunc = &Microsoft::MSR::CNTK::ConvolveGeometry::ComputeOutputShape;
+        else
+            computeOutputShapeFunc = &Microsoft::MSR::CNTK::ConvolveGeometry::ComputeInputShape;
+
+        return AsNDShape(computeOutputShapeFunc(AsTensorShape(operandShape), AsTensorShape(kernelShape), AsTensorShape(outputMapCount), AsTensorShape(strides), sharing, autoPad, AsTensorShape(lowerPad), AsTensorShape(upperPad), ceilOutputDim));
+    }
+
+    /*static*/ bool PrimitiveFunction::UpdateOperandShapes(std::vector<std::pair<Variable, NDShape>>& newOperandShapes)
+    {
+        bool anyParameterOperandDimsInferred = false;
+        auto updateOperandShapeFunc = [](Variable& operand, const NDShape& newOperandShape) {
+            if ((operand.IsParameter() || operand.IsConstant()) && (operand.Shape() != newOperandShape))
+            {
+                operand.m_dataFields->m_shape = newOperandShape;
+                return true;
+            }
+
+            return false;
+        };
+
+        for (auto& newOperandShapePair : newOperandShapes)
+            anyParameterOperandDimsInferred = updateOperandShapeFunc(newOperandShapePair.first, newOperandShapePair.second) || anyParameterOperandDimsInferred;
+
+        return anyParameterOperandDimsInferred;
+    }
+
+    NDShape PrimitiveFunction::NaryElementwiseOpOutputShape(PrimitiveOpType op, std::vector<Variable>& operands, bool broadcastAllowed, bool inferInputDimensions) const
+    {
+        assert(operands.size() > 1);
+
+        // TODO: Is this logic of transitively constructing the output shape from the operands correct?
+        Variable dummyOutputVariable = PlaceholderVariable(NDShape());
+        for (auto& operand : operands)
+            dummyOutputVariable.m_dataFields->m_shape = BinaryElementwiseOpOutputShape(op, dummyOutputVariable, operand, broadcastAllowed, inferInputDimensions);
+
+        return dummyOutputVariable.Shape();
     }
 }

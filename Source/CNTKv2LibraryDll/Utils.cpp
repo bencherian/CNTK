@@ -133,9 +133,6 @@ namespace CNTK
         return !(*this == other);    
     }
 
-    
-
-
     Dictionary::Dictionary()
         : m_dictionaryData(new unordered_map <wstring, DictionaryValue>)
     {
@@ -425,7 +422,6 @@ namespace CNTK
         return fd;
     }
 
-
     std::string ToString(const std::wstring& wstring)
     {
 #ifdef _MSC_VER
@@ -518,6 +514,7 @@ namespace CNTK
 
         return std::pair<size_t, size_t>(maxNumTimeSteps, numSequences);
     }
+
     /*static*/ void Utils::VerifyVariableValueCompatibility(const Variable& var, const ValuePtr& value)
     {
         if (var.GetDataType() != value->GetDataType())
@@ -565,6 +562,16 @@ namespace CNTK
         if (valueShape.Rank() > (varShape.Rank() + maxAddionalValueAxes))
             InvalidArgument("Value rank (%d) should be larger than the Variable rank (%d) at most by number of dynamic axes (%d); Variable = '%S', Value shape = '%S'.",
                             (int)valueShape.Rank(), (int)varShape.Rank(), (int)numDynamicAxes, var.AsString().c_str(), valueShape.AsString().c_str());
+
+        if (valueShape.Rank() > (varShape.Rank() + numDynamicAxes))
+        {
+            for (size_t i = 0; i < (maxAddionalValueAxes - numDynamicAxes); ++i)
+            {
+                if (valueShape[varShape.Rank() + i] != 1)
+                    InvalidArgument("Value rank (%d) should be larger than the Variable rank (%d) at most by number of dynamic axes (%d); Variable = '%S', Value shape = '%S'.",
+                                    (int)valueShape.Rank(), (int)varShape.Rank(), (int)numDynamicAxes, var.AsString().c_str(), valueShape.AsString().c_str());
+            }
+        }
 
         if (valueShape.SubShape(0, varShape.Rank()) != varShape)
         {

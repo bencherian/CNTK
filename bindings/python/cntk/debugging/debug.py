@@ -8,7 +8,7 @@ from collections import defaultdict
 
 from cntk import cntk_py, user_function
 
-from cntk import output_variable, CloneMethod
+from cntk.ops import output_variable, CloneMethod
 
 from cntk.ops.functions import UserFunction
 from cntk.internal import map_if_possible
@@ -18,8 +18,8 @@ DEBUG_USAGE = '''\
         n - execute the next node
         n <number> - execute the next <number> nodes
 
-        u f - exeucte until forward pass (like 'n' when already in forward pass)
-        u b - exeucte until backward pass (like 'n' when already in backward pass)
+        u f - execute until forward pass (like 'n' when already in forward pass)
+        u b - execute until backward pass (like 'n' when already in backward pass)
         u name - execute until a node with that name is hit
         u <lambda> - execute until the lambda expression is True. Examples:
                      Until a Times node is hit:
@@ -29,7 +29,7 @@ DEBUG_USAGE = '''\
                      Until the variance of the input exceeds 1 (np = numpy):
                          lambda arg, node: np.var(arg) > 1
 
-        c - exeucte until end
+        c - execute until end
         p - print input (forward) or root gradients (backward)
         d - drop into a pdb shell
         q - quit\
@@ -112,7 +112,7 @@ def set_computation_network_track_gap_nans(enable):
     For debugging purposes only.
 
     Args:
-        enable (Boolean): whether to enable gap nans tracking (with performance impact)
+        enable (bool): whether to enable gap nans tracking (with performance impact)
     '''
     cntk_py.set_computation_network_track_gap_nans(enable)
 
@@ -120,10 +120,15 @@ def set_computation_network_track_gap_nans(enable):
 def set_computation_network_trace_level(level):
     '''
     Set trace level to the computation network. Currently supported values:
-       0        : turn off trace
-       1        : output nodes' dimensions and some other static info
-       1000     : output each node's abs sum of elements in its value matrix for every forward/backward
-       1000000  : output each node's full matrix for every forward/backward
+
+       0
+         turn off trace
+       1
+         output nodes' dimensions and some other static info
+       1000
+         output each node's abs sum of elements in its value matrix for every forward/backward
+       1000000
+         output each node's full matrix for every forward/backward
 
     Args:
         level (int): trace level
@@ -159,11 +164,16 @@ class _DebugNode(UserFunction):
     def __init__(self, arg, debug_state,
                  in_stream=sys.stdin, out_stream=sys.stdout,
                  exit_func=sys.exit,
-                 name='Debug'):
+                 name='D'):
         if hasattr(arg, 'is_composite') and arg.is_composite:
             arg = arg.root_function
 
-        name += '_%s' % arg.uid
+        # Shorten the name a bit
+        arg_uid_parts = arg.uid.split('_')
+        if len(arg_uid_parts)>2 and arg_uid_parts[-2] == 'Output':
+            del arg_uid_parts[-2]
+        name += '_%s' % '_'.join(arg_uid_parts)
+
         super(_DebugNode, self).__init__([arg], as_numpy=True, name=name)
         self.after = arg
         self.debug_state = debug_state
@@ -174,7 +184,7 @@ class _DebugNode(UserFunction):
     def clone(self, cloned_inputs):
         arg = cloned_inputs[0]
         map_if_possible(arg)
-        return _DebugNode(arg, self.debug_state)
+        return _DebugNode(arg, self.debug_state, self._in,self._out, self._exit)
 
     # TODO:
     # Breakopint handling
@@ -368,7 +378,7 @@ class _DebugNode(UserFunction):
 
 
 def _nodes_to_debug(model):
-    from cntk.graph import depth_first_search
+    from cntk.logging.graph import depth_first_search
 
     def node_filter(x):
         if hasattr(x, 'op_name') and x.op_name in ['NoOp']:
@@ -391,6 +401,8 @@ def _nodes_to_debug(model):
 def debug_model(model, in_stream=sys.stdin, out_stream=sys.stdout,
                 exit_func=sys.exit):
     '''
+    debug_model(model, in_stream=sys.stdin, out_stream=sys.stdout, exit_func=sys.exit)
+
     Returns a cloned model that has debug nodes inserted everywhere. When the
     graph is evaluated or trained, those nodes will allow to inspect the graph.
 
@@ -410,29 +422,23 @@ def debug_model(model, in_stream=sys.stdin, out_stream=sys.stdout,
     dbg_state = _DebugState(nodes)
 
     orig_node_count = len(nodes)
-    mod_counter = 1
+    mod_counter = 0
 
     # We cannot add the DebugNodes in one clone because the replacements will
     # hide parent nodes.
-    while True:
+    while len(nodes) > 0:
         modifications = {n: user_function(_DebugNode(n, dbg_state,
                                                      in_stream, out_stream,
                                                      exit_func))
                          for n in nodes}
 
         model = model.clone(CloneMethod.share, modifications)
-        from cntk.graph import plot
 
-        nodes = _nodes_to_debug(model)
-        if len(nodes) == 1:
-            # last node is the model node, which we want to debug as well
-            model = user_function(_DebugNode(model, dbg_state,
-                                             in_stream, out_stream))
-            break
+        mod_counter += 1
 
         if mod_counter > orig_node_count:
             raise ValueError('cannot debug this graph')
 
-        mod_counter += 1
+        nodes = _nodes_to_debug(model)
 
     return model

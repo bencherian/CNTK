@@ -200,6 +200,9 @@ namespace CNTK
     class TrainingSession;
     typedef std::shared_ptr<TrainingSession> TrainingSessionPtr;
 
+    class Evaluator;
+    typedef std::shared_ptr<Evaluator> EvaluatorPtr;
+
     class Trainer;
     typedef std::shared_ptr<Trainer> TrainerPtr;
 
@@ -208,6 +211,8 @@ namespace CNTK
 
     class Accumulator;
     typedef std::shared_ptr<Accumulator> AccumulatorPtr;
+
+    struct MinibatchSourceConfig;
 
     namespace Internal
     {
@@ -222,20 +227,19 @@ namespace CNTK
         CNTK_API FunctionPtr Gather(const Variable& operand, const Variable& condition, const std::pair<size_t, int>& newDerivedSequenceAxisScalingAndAdditiveFactor, const std::wstring& name = L"");
         CNTK_API FunctionPtr Scatter(const Variable& operand, const Variable& condition, const std::wstring& name = L"");
         CNTK_API FunctionPtr Scatter(const Variable& operand, const Variable& condition, const std::pair<size_t, int>& newDerivedSequenceAxisScalingAndAdditiveFactor, const std::wstring& name = L"");
-        CNTK_API FunctionPtr Slice(const Variable& operand, const Axis& axis, int beginIndex, int endIndex, const std::wstring& name = L"");
+        CNTK_API FunctionPtr Slice(const Variable& operand, const std::vector<Axis>& axis, const std::vector<int>& beginIndex, const std::vector<int>& endIndex, const std::wstring& name = L"");
         CNTK_API FunctionPtr ReduceElements(const Variable& operand, const std::wstring& reductionOpName, const Axis& axis, const std::wstring& name = L"");
         CNTK_API FunctionPtr ReconcileDynamicAxes(const Variable& operand, const Variable& axesAsOperand, const std::wstring& name = L"");
         CNTK_API FunctionPtr CosineDistanceWithNegativeSamples(const Variable& leftOperand, const Variable& rightOperand, const Variable& shiftWindow, const Variable& numberOfNegativeSamples, const std::wstring& name = L"");
         CNTK_API FunctionPtr Convolution(const Variable& convolutionMap, const Variable& operand, const NDShape& strides, const std::vector<bool>& sharing, const std::vector<bool>& autoPadding,
-                                         const NDShape& lowerPad, const NDShape& upperPad, bool transpose, const NDShape& outputShape, size_t maxTempMemSizeInSamples, const std::wstring& name = L"");
+                                         bool transpose, const NDShape& outputShape, size_t maxTempMemSizeInSamples, const std::wstring& name = L"");
 
         // This is meant for debugging purposes only and is very likely to be deprecated in the future.
         CNTK_API void SaveAsLegacyModel(const FunctionPtr& rootFunction, const std::wstring& modelFile);
 
-        // TODO: Workaround for back compat. Should not be used and will be removed in the next version.
-        CNTK_API void AddProgressWriters(const TrainerPtr&, const std::vector<ProgressWriterPtr>&);
-
         CNTK_API size_t NewUniqueId();
+
+        CNTK_API size_t GenerateRandomSeed();
 
         // Internal hooks for testing and higher-level bindings
         // These should not be directly called by C++ API users
@@ -259,8 +263,13 @@ namespace CNTK
 
         CNTK_API void SetGPUMemoryAllocationTraceLevel(int traceLevel);
 
+        CNTK_API void SetMathLibTraceLevel(int traceLevel);
+
         CNTK_API void ForceDeterministicAlgorithms();
         CNTK_API bool ShouldForceDeterministicAlgorithms();
+
+        CNTK_API void EnableSynchronousGPUKernelExecution();
+        CNTK_API bool IsSynchronousGPUKernelExecutionEnabled();
 
         CNTK_API void SetFixedRandomSeed(unsigned long fixedRandomSeed);
 
@@ -283,6 +292,9 @@ namespace CNTK
         CNTK_API bool AreEqual(const ::CNTK::Value& value1, const ::CNTK::Value& value2, double relativeTolerance = 0.0, double absoluteTolerance = 0.0);
 
         CNTK_API size_t DefaultPackThresholdSizeInBytes();
+
+        // This is an internal API, needed for testing.
+        CNTK_API Dictionary ToDictionary(const MinibatchSourceConfig& dict);
 
         class VariableResolver;
 
@@ -351,5 +363,11 @@ namespace CNTK
             FILE* m_file;
             std::wstring m_fileName;
         };
+    }
+
+    // Forward-declare test fixtures, so that they can be used as friends.
+    namespace Test 
+    {
+        struct DeviceSelectionTestFixture;
     }
 }

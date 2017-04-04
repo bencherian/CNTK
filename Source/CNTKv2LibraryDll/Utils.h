@@ -30,14 +30,23 @@ namespace CNTK
             NOT_IMPLEMENTED;
     }
 
+    template <typename T>
+    inline bool IsObjectExpired(std::weak_ptr<T> ptrToObject)
+    {
+        if ((ptrToObject.owner_before(std::weak_ptr<T>{}) || std::weak_ptr<T>{}.owner_before(ptrToObject)) && ptrToObject.expired())
+            return true;
+        else
+            return false;
+    }
+
     inline DEVICEID_TYPE AsCNTKImplDeviceId(const DeviceDescriptor& device)
     {
         if (device.Type() == DeviceKind::CPU)
             return CPUDEVICE;
-        else if (device.Type() == DeviceKind::GPU)
+        if (device.Type() == DeviceKind::GPU)
             return device.Id();
-        else
-            NOT_IMPLEMENTED;
+
+        LogicError("Invalid device type (%u).", (unsigned int)device.Type());
     }
 
     inline Microsoft::MSR::CNTK::MatrixFormat AsCNTKImplMatrixFormat(StorageFormat storageFormat)
@@ -235,6 +244,7 @@ namespace CNTK
     inline std::vector<DictionaryValue> AsDictionaryValueVector(const std::vector<T>& elementVector)
     {
         static_assert(std::is_same<T, bool>::value ||
+                      std::is_same<T, int>::value ||
                       std::is_same<T, size_t>::value ||
                       std::is_same<T, float>::value ||
                       std::is_same<T, double>::value ||
@@ -253,6 +263,7 @@ namespace CNTK
     inline std::vector<T> AsVector(const std::vector<DictionaryValue>& dictionaryValueVector)
     {
         static_assert(std::is_same<T, bool>::value ||
+                      std::is_same<T, int>::value || 
                       std::is_same<T, size_t>::value ||
                       std::is_same<T, float>::value ||
                       std::is_same<T, double>::value ||
@@ -311,6 +322,14 @@ namespace CNTK
         return Axis(CNTKInternalAxisIdx - 1);
     }
 
+    inline std::vector<Axis> AsAxis(std::vector<int> CNTKInternalAxis)
+    {
+        std::vector<Axis> retAxisVec; 
+        for (auto& axisIdx : CNTKInternalAxis)
+            retAxisVec.push_back(AsAxis(axisIdx));
+        return retAxisVec;
+    }
+
     inline int AsCNTKInternalAxisIdx(const Axis& axis)
     {
         if (axis == Axis::AllStaticAxes())
@@ -326,6 +345,14 @@ namespace CNTK
             LogicError("Only Static Axes can be converted to a CNTK internal axis index");
 
         return (int)(axis.StaticAxisIndex() + 1);
+    }
+
+    inline std::vector<int> AsCNTKInternalAxisIdx(const std::vector<Axis>& axisVec)
+    {
+        std::vector<int> retAxisVec; 
+        for (auto& axis : axisVec)
+            retAxisVec.push_back(AsCNTKInternalAxisIdx(axis)); 
+        return retAxisVec; 
     }
 
     inline std::pair<NDShape, NDShape> GetConvolutionOutputMapCountAndKernelShape(const NDShape& convolutionMapShape, const NDShape& operandShape, bool transpose)
@@ -519,6 +546,11 @@ namespace CNTK
     inline  bool IsConstantScalar(const Variable& var)
     {
         return var.IsConstant() && (var.Shape().TotalSize() == 1);
+    }
+
+    inline Variable PlaceholderLike(const Variable& var)
+    {
+        return PlaceholderVariable(var.Shape(), var.GetDataType(), var.Name(), var.DynamicAxes());
     }
 
     std::vector<Axis> DynamicAxesFromInternalDynamicAxisName(const std::wstring& internalDynamicAxisName);

@@ -591,10 +591,8 @@ public:
                     Matrix<ElemType> gradient = GradientFor(fr);
                     Matrix<ElemType> inputValue = InputRef(1 - inputIndex).ValueFor(fr);
                     Matrix<ElemType> inputGradient = InputRef(inputIndex).GradientFor(fr);
-                    Matrix<ElemType> gradientDiagonal(gradient.GetNumCols(), gradient.GetNumCols(), gradient.GetDeviceId());
-                    gradientDiagonal.SetDiagonalValue(gradient);
-                    Matrix<ElemType>::MultiplyAndWeightedAdd(
-                        (ElemType)1.0, inputValue, false, gradientDiagonal, true,
+                    Matrix<ElemType>::ColumnwiseScaleAndWeightedAdd(
+                        (ElemType)1.0, inputValue, gradient,
                         Input(inputIndex)->ParentOverwritesGradient() ? (ElemType)0.0 : (ElemType)1.0,
                         inputGradient);
                     // TODO: better move this special-casing into TensorView::AssignElementwiseProductOf()
@@ -1255,15 +1253,16 @@ public:
             m_temp->AssignElementProductOf(*m_invNorm0, *m_invNorm0);
         else // right derivative
             m_temp->AssignElementProductOf(*m_invNorm1, *m_invNorm1);
-        auto tempView = TensorView<ElemType>(m_temp, this->GetTensorShape(SIZE_MAX));
-        tempView.AssignElementwiseProductOf(ValueTensorFor(1, fr), tempView);
-        tempView.AssignElementwiseProductOf(GradientTensorFor(1, fr), tempView);
-        auto gradientView = Input(inputIndex)->GradientTensorFor(SIZE_MAX, fr);
-        gradientView.AddElementwiseProductOf(tempView, Input(inputIndex)->ValueTensorFor(SIZE_MAX, fr), -1);
+        int rank = DetermineElementwiseTensorRank();
+        auto tempView = TensorView<ElemType>(m_temp, ValueTensorFor(rank, fr).GetShape());
+        tempView.AssignElementwiseProductOf(ValueTensorFor(rank, fr), tempView);
+        tempView.AssignElementwiseProductOf(GradientTensorFor(rank, fr), tempView);
+        auto gradientView = Input(inputIndex)->GradientTensorFor(rank, fr);
+        gradientView.AddElementwiseProductOf(tempView, Input(inputIndex)->ValueTensorFor(rank, fr), -1);
 
         m_temp->AssignElementProductOf(*m_invNorm0, *m_invNorm1);
-        tempView.AssignElementwiseProductOf(GradientTensorFor(1, fr), tempView);
-        gradientView.AddElementwiseProductOf(tempView, Input(1 - inputIndex)->ValueTensorFor(SIZE_MAX, fr));
+        tempView.AssignElementwiseProductOf(GradientTensorFor(rank, fr), tempView);
+        gradientView.AddElementwiseProductOf(tempView, Input(1 - inputIndex)->ValueTensorFor(rank, fr));
     }
 
     virtual void /*ComputationNode::*/ ForwardProp(const FrameRange& fr) override

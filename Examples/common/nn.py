@@ -8,7 +8,6 @@
 
 import numpy as np
 from cntk.ops import *
-from cntk.utils import get_train_eval_criterion, get_train_loss
 from cntk.initializer import glorot_uniform, he_normal
 
 
@@ -169,10 +168,10 @@ def LSTMP_cell_with_self_stabilization(input, prev_output, prev_cell_state):
     return (times(element_times(expsWmr, mt), Wmr), ct)
 
 
-def LSTMP_component_with_self_stabilization(input, output_dim, cell_dim, recurrence_hookH=past_value, recurrence_hookC=past_value):
-    dh = placeholder_variable(
+def LSTMP_component_with_self_stabilization(input, output_dim, cell_dim, recurrence_hookH=sequence.past_value, recurrence_hookC=sequence.past_value):
+    dh = placeholder(
         shape=(output_dim), dynamic_axes=input.dynamic_axes)
-    dc = placeholder_variable(
+    dc = placeholder(
         shape=(cell_dim), dynamic_axes=input.dynamic_axes)
 
     LSTMCell = LSTMP_cell_with_self_stabilization(input, dh, dc)
@@ -190,7 +189,7 @@ def LSTMP_component_with_self_stabilization(input, output_dim, cell_dim, recurre
 def print_training_progress(trainer, mb, frequency):
 
     if mb % frequency == 0:
-        training_loss = get_train_loss(trainer)
-        eval_crit = get_train_eval_criterion(trainer)
+        training_loss = trainer.previous_minibatch_loss_average
+        eval_crit = trainer.previous_minibatch_evaluation_average
         print("Minibatch: {}, Train Loss: {}, Train Evaluation Criterion: {}".format(
             mb, training_loss, eval_crit))

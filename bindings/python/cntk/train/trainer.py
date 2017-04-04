@@ -4,15 +4,15 @@
 # for full license information.
 # ==============================================================================
 
-from .. import cntk_py
+from .. import cntk_py, Value
 from ..device import use_default_device
-from ..utils import value_to_seq, variable_value_to_seq
-from cntk.internal import sanitize_var_map, sanitize_function, typemap
+from cntk.internal import sanitize_var_map, sanitize_function, typemap, \
+                          map_if_possible, _value_as_sequence_or_array
 from ..io import _py_dict_to_cntk_dict, MinibatchData
 
 __doc__= '''\
 A trainer encapsulates the overall training process and employs one or more
-:doc:`learners <cntk.learner>` to tune the parameters of a specified model
+:mod:`~cntk.learners` to tune the parameters of a specified model
 using gradients of parameters w.r.t. a training objective.
 '''
 
@@ -157,7 +157,7 @@ class Trainer(cntk_py.Trainer):
                     output_map, device)
 
             for k,v in output_map.items():
-                output_map[k] = variable_value_to_seq(v, k)
+                output_map[k] = _value_as_sequence_or_array(v, k)
 
             return updated, output_map
         else:

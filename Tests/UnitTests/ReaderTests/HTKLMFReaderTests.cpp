@@ -735,13 +735,13 @@ BOOST_AUTO_TEST_CASE(HTKNoIVector)
 
 BOOST_AUTO_TEST_CASE(HTKIVectorFrame)
 {
-    auto test = [this](std::vector<std::wstring> additionalParameters)
+    auto test = [this](std::vector<std::wstring> additionalParameters, const std::string& configName)
     {
         HelperRunReaderTest<double>(
             testDataPath() + "/Config/HTKMLFReaderIVectorSimple_Config.cntk",
             testDataPath() + "/Control/HTKMLFReaderIVectorSimple_Control.txt",
             testDataPath() + "/Control/HTKMLFReaderIVectorSimple_Output.txt",
-            "Simple_Test",
+            configName,
             "reader",
             400,
             30,
@@ -756,19 +756,47 @@ BOOST_AUTO_TEST_CASE(HTKIVectorFrame)
             additionalParameters);
     };
 
-    test({});
-    test({ L"Simple_Test=[reader=[readerType=HTKDeserializers]]" });
+    test({ L"frameMode=true" }, "Simple_Test");
+    test({ L"frameMode=true", L"shouldExpand=true" }, "Simple_TestDeserializers");
 };
+
+BOOST_AUTO_TEST_CASE(HTKNoPropagationOfUtteranceIVectorFrame)
+{
+    std::vector<std::wstring> additionalParameters = { L"frameMode=true", L"shouldExpand=false" };
+    BOOST_REQUIRE_EXCEPTION(
+        HelperRunReaderTest<double>(
+            testDataPath() + "/Config/HTKMLFReaderIVectorSimple_Config.cntk",
+            testDataPath() + "/Control/HTKMLFReaderIVectorSimple_Control.txt",
+            testDataPath() + "/Control/HTKMLFReaderIVectorSimple_Output.txt",
+            "Simple_TestDeserializers",
+            "reader",
+            400,
+            30,
+            1,
+            2,
+            1,
+            0,
+            1,
+            false,
+            false,
+            true,
+            additionalParameters),
+        runtime_error,
+        [](const runtime_error& e)
+        { return string("Sequence with key 'fsh060057A-0002' has '1' frame(s),"
+            " whereas the primary sequence expects at least '2' frames") == e.what(); });
+};
+
 
 BOOST_AUTO_TEST_CASE(HTKIVectorSequence)
 {
-    auto test = [this](std::vector<std::wstring> additionalParameters)
+    auto test = [this](std::vector<std::wstring> additionalParameters, const std::string& configName)
     {
         HelperRunReaderTest<float>(
             testDataPath() + "/Config/HTKMLFReaderIVectorSimple_Config.cntk",
             testDataPath() + "/Control/HTKMLFReaderIVectorSequenceSimple_Control.txt",
             testDataPath() + "/Control/HTKMLFReaderIVectorSequenceSimple_Output.txt",
-            "Simple_Test",
+            configName,
             "reader",
             200,
             30,
@@ -783,19 +811,19 @@ BOOST_AUTO_TEST_CASE(HTKIVectorSequence)
             additionalParameters);
     };
 
-    test({ L"frameMode=false", L"precision=float" });
-    test({ L"frameMode=false", L"precision=float", L"Simple_Test=[reader=[readerType=HTKDeserializers]]" });
+    test({ L"frameMode=false", L"precision=float" }, "Simple_Test");
+    test({ L"frameMode=false", L"precision=float", L"shouldExpand=true" }, "Simple_TestDeserializers");
 };
 
 BOOST_AUTO_TEST_CASE(HTKIVectorBptt)
 {
-    auto test = [this](std::vector<std::wstring> additionalParameters)
+    auto test = [this](std::vector<std::wstring> additionalParameters, const std::string& configName)
     {
         HelperRunReaderTest<double>(
             testDataPath() + "/Config/HTKMLFReaderIVectorSimple_Config.cntk",
             testDataPath() + "/Control/HTKMLFReaderIVectorBpttSimple_Control.txt",
             testDataPath() + "/Control/HTKMLFReaderIVectorBpttSimple_Output.txt",
-            "Simple_Test",
+            configName,
             "reader",
             400,
             30,
@@ -809,8 +837,8 @@ BOOST_AUTO_TEST_CASE(HTKIVectorBptt)
             true,
             additionalParameters);
     };
-    test({ L"frameMode=false", L"truncated=true" });
-    test({ L"frameMode=false", L"truncated=true", L"Simple_Test=[reader=[readerType=HTKDeserializers]]" });
+    test({ L"frameMode=false", L"truncated=true" }, "Simple_Test");
+    test({ L"frameMode=false", L"truncated=true, truncationLength=30", L"shouldExpand=true" }, "Simple_TestDeserializers");
 };
 
 BOOST_AUTO_TEST_SUITE_END()

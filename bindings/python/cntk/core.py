@@ -11,6 +11,9 @@ from scipy import sparse
 from . import cntk_py
 from .device import use_default_device, cpu, DeviceKind
 from cntk.internal import typemap
+from cntk.internal.sanitize import sanitize_batch,\
+                                   _sparse_to_dense_network_cache,\
+                                   data_type_to_dtype
 
 
 def _is_c_contiguous(data):
@@ -84,7 +87,7 @@ class NDArrayView(cntk_py.NDArrayView):
         format.
 
         Args:
-            csr_array (scipy.sparse.csr.csr_matrix): SciPy sparse matrix in CSR
+            csr_array (scipy.sparse.csr_matrix): SciPy sparse matrix in CSR
              format
             device (:class:`~cntk.device.DeviceDescriptor`): device this value
              should be put on
@@ -115,7 +118,7 @@ class NDArrayView(cntk_py.NDArrayView):
         array in CSR format.
 
         Args:
-            data (numpy.ndarray or scipy.sparse.csr.csr_matrix): data
+            data (numpy.ndarray or scipy.sparse.csr_matrix): data
             device (:class:`~cntk.device.DeviceDescriptor`): device this value
              should be put on
             read_only (bool, optional): whether the data can be modified or
@@ -161,7 +164,7 @@ class NDArrayView(cntk_py.NDArrayView):
                                       dtype=np.float32)
             >>> nd = NDArrayView.from_dense(np_array)
             >>> sliced = nd.slice_view([0, 0, 0, 0], [2, 3])
-            >>> np_sliced = np.asarray(sliced)
+            >>> np_sliced = sliced.asarray()
             >>> # Result is an array of shape (2, 3)
             >>> print(np_sliced)
             [[ 10.  20.  30.]
@@ -175,8 +178,37 @@ class NDArrayView(cntk_py.NDArrayView):
         '''
         return super(NDArrayView, self).slice_view(
                 list(reversed(start_offset)),
-                list(reversed(extent)), 
+                list(reversed(extent)),
                 read_only)
+
+    @property
+    @typemap
+    def device(self):
+        '''
+        Retrieves the :class:`~cntk.device.DeviceDescriptor` instance.
+        '''
+        return super(NDArrayView, self).device()
+
+    @property
+    def is_sparse(self):
+        '''
+        Whether the data is sparse or dense
+        '''
+        return super(NDArrayView, self).is_sparse()
+
+    @property
+    def is_read_only(self):
+        '''
+        Whether the data is read-only
+        '''
+        return super(NDArrayView, self).is_read_only()
+
+    @property
+    def dtype(self):
+        '''
+        NumPy data type of the instance
+        '''
+        return data_type_to_dtype(self.get_data_type())
 
 
 class Value(cntk_py.Value):
@@ -226,28 +258,71 @@ class Value(cntk_py.Value):
         else:
             super(Value, self).__init__(ndav)
 
+    def as_sequences(self, variable=None):
+        '''
+        Convert a Value to a sequence of NumPy arrays that have their masked
+        entries removed.
+
+        Returns:
+            If variable contains more dynamic axes than the batch axis, a list
+            of NumPy arrays (if dense) or a SciPy CSR array (if sparse) will be
+            returned. Otherwise, the arrays will be returned directly.
+        '''
+        if self.is_sparse:
+            if variable is None:
+                raise ValueError('cannot convert sparse value to sequences '
+                                 'without the corresponding variable')
+            network = _sparse_to_dense_network_cache(variable.shape, True, self.device)
+
+            warnings.warn('converting Value object to CSR format might be slow')
+
+            # TODO: Add direct conversion, since creating an intermediate array might be slow
+            dense_data = network.eval(self, device=self.device)
+            return [sparse.csr_matrix(seq) for seq in dense_data]
+
+        else:
+            # Checking for mask without retrieving
+            has_mask = super(Value, self).mask() is not None
+
+            if has_mask:
+                if variable is None:
+                    mask = self.mask
+                    return [seq[mask[idx] != cntk_py.MaskKind_Invalid]
+                               for idx, seq in enumerate(self.data.asarray())]
+                else:
+                    value_sequences = self.unpack_variable_value(variable, True, cpu())
+                    return [seq.asarray() for seq in value_sequences[0]]
+            else:
+                # This might be costly, but we need to return a list for
+                # consistency.
+                arr = self.asarray()
+                if not arr.shape:
+                    return [arr]
+                else:
+                    return list(arr)
+
     @staticmethod
     def _as_best_data_type(var, sample):
         convert_to_var_dtype = False
 
         if isinstance(sample, list):
             try:
-                sample = np.asarray(sample, dtype=var.dtype)
+                sample = asarray(sample, dtype=var.dtype)
             except ValueError:
                 s = sample
                 while isinstance(s, list) and len(s) > 0:
                     s = s[0]
                 if sparse.issparse(s):
                     raise ValueError('if you provide sparse data, every '
-                                     'sequence must be encoded as one '
-                                     'csr_matrix instance. Your sequence '
-                                     'was: \'%s\'' % str(sample))
+                                        'sequence must be encoded as one '
+                                        'csr_matrix instance. Your sequence '
+                                        'was: \'%s\'' % str(sample))
                 else:
                     raise
 
             if sample.dtype != var.dtype:
                 raise ValueError('could not convert sample data to '
-                                 'NumPy array')
+                                    'NumPy array')
 
         elif sample.dtype in (np.float32, np.float64):
             if sample.dtype != var.dtype:
@@ -276,7 +351,7 @@ class Value(cntk_py.Value):
         Creates a :class:`~cntk.core.Value` object.
 
         Args:
-            var (:class:`~cntk.ops.variables.Variable`): variable into which
+            var (:class:`~cntk.variables.Variable`): variable into which
              ``data`` is passed
             data: data for `var`.
              It can be:
@@ -308,13 +383,13 @@ class Value(cntk_py.Value):
 
             return cntk_py.Value(ndav)
 
-        elif len(var.dynamic_axes) <= 1 and isinstance(data, list):
+        elif len(var.dynamic_axes) <= 1 and isinstance(data, list) and len(data) > 1:
             warnings.warn('you provided the minibatch data as a list, but '
                           'your corresponding input variable (uid "%s") has '
                           'only one dynamic axis (batch axis). To speed up '
-                          'graph executen, please convert the data '
+                          'graph execution, please convert the data '
                           'beforehand into one NumPy array to speed up '
-                          ' training.' % var.uid)
+                          'training.' % var.uid)
 
         if isinstance(data, cntk_py.NDArrayView):
             return cntk_py.Value(data)
@@ -329,6 +404,16 @@ class Value(cntk_py.Value):
 
             if seq_starts:
                 data = list(np.atleast_1d(data))
+            else:
+                data = Value._as_best_data_type(var, data)
+                ndav = NDArrayView.from_data(data, device)
+
+                return cntk_py.Value(ndav)
+
+        if isinstance(data, sparse.csr_matrix):
+            if seq_starts:
+                raise ValueError('seq_starts are not supported with data specified as a single '
+                                 'SciPy sparse CSR matrix. Please provide a list instead')
             else:
                 data = Value._as_best_data_type(var, data)
                 ndav = NDArrayView.from_data(data, device)
@@ -362,31 +447,34 @@ class Value(cntk_py.Value):
 
         return value
 
+    ONE_HOT_SKIP = cntk_py.Value.one_hot_skip
+
     @staticmethod
     @typemap
     def one_hot(batch, num_classes, dtype=None, device=None):
         '''
         Converts ``batch`` into a :class:`~cntk.core.Value` object of ``dtype``
         such that the integer data in ``batch`` is interpreted as the indices
-        representing one-hot vectors.
+        representing one-hot vectors. Use Value.ONE_HOT_SKIP for a zero vector
 
         Example:
             >>> num_classes = 6
-            >>> sparse_indices = [[1,5],[4]]
-            >>> i0 = C.input_variable(shape=num_classes, is_sparse=True)
+            >>> sparse_indices = [[1,C.Value.ONE_HOT_SKIP,5],[4]]
+            >>> i0 = C.sequence.input(shape=num_classes, is_sparse=True)
             >>> z = C.times(i0, np.eye(num_classes))
-            >>> value = C.one_hot(sparse_indices, num_classes)
+            >>> value = C.Value.one_hot(sparse_indices, num_classes)
             >>> z.eval({i0: value})
             [array([[ 0.,  1.,  0.,  0.,  0.,  0.],
+                    [ 0.,  0.,  0.,  0.,  0.,  0.],
                     [ 0.,  0.,  0.,  0.,  0.,  1.]], dtype=float32), 
              array([[ 0.,  0.,  0.,  0.,  1.,  0.]], dtype=float32)]
             <BLANKLINE>
             >>> num_classes = 6
             >>> sample_shape = (2, num_classes)
             >>> sparse_indices = [[1,5,3,2],[4,1]]
-            >>> i0 = C.input_variable(shape=sample_shape, is_sparse=True)
+            >>> i0 = C.sequence.input(shape=sample_shape, is_sparse=True)
             >>> z = C.times(i0, np.eye(num_classes))
-            >>> value = C.one_hot(sparse_indices, sample_shape)
+            >>> value = C.Value.one_hot(sparse_indices, sample_shape)
             >>> z.eval({i0: value})
             [array([[[ 0.,  1.,  0.,  0.,  0.,  0.],
                      [ 0.,  0.,  0.,  0.,  0.,  1.]],
@@ -397,7 +485,7 @@ class Value(cntk_py.Value):
 
         Args:
             batch (list of lists of integers): batch input data of indices
-            sample_shape (integer or tuple): number of classes or shape of each sample whose trailing axis is one_hot
+            sample_shape (int or tuple): number of classes or shape of each sample whose trailing axis is one_hot
             dtype (`np.float32`, `np.float64`, default None): data type
             device (:class:`~cntk.device.DeviceDescriptor`, default None): device
              this value should be put on
@@ -416,13 +504,16 @@ class Value(cntk_py.Value):
 
         if isinstance(batch, np.ndarray):
             batch = batch.tolist()
+        elif isinstance(batch, list) and isinstance(batch[0], np.ndarray):
+            batch = [b.tolist() for b in batch]
 
         try:
-            data_type = type(batch[0][0])
+            elem = batch[0][0]
         except:
             raise ValueError('input must be a list of list of integers')
 
-        if data_type != int:
+        if not isinstance(elem, numbers.Integral):
+            data_type = type(elem)
             raise ValueError('supplied data to one_hot() must be of type integer'
                              ' and not "%s" since it is index data.' % data_type)
 
@@ -433,6 +524,7 @@ class Value(cntk_py.Value):
             value = cntk_py.Value.create_one_hot_double(
                 sample_shape, batch, device, False)
         return value
+
 
     @property
     def shape(self):
@@ -461,7 +553,7 @@ class Value(cntk_py.Value):
           (1), it is a continuation of the 2nd sequence in the previous
           minibatch.
         '''
-        return np.asarray(super(Value, self).mask())
+        return super(Value, self).mask().asarray()
 
     @property
     @typemap
@@ -477,6 +569,35 @@ class Value(cntk_py.Value):
         '''
         return self.shape[0]
 
+    @property
+    @typemap
+    def device(self):
+        '''
+        Retrieves the :class:`~cntk.device.DeviceDescriptor` instance.
+        '''
+        return super(Value, self).device()
+
+    @property
+    def is_sparse(self):
+        '''
+        Whether the data is sparse or dense
+        '''
+        return super(Value, self).is_sparse()
+
+    @property
+    def is_read_only(self):
+        '''
+        Whether the data is read-only
+        '''
+        return super(Value, self).is_read_only()
+
+    @property
+    def dtype(self):
+        '''
+        NumPy data type of the instance
+        '''
+        return data_type_to_dtype(self.get_data_type())
+
 
 def user_function(user_func):
     '''
@@ -485,3 +606,26 @@ def user_function(user_func):
     '''
     from . import as_composite
     return as_composite(user_func)
+
+
+def asarray(value, dtype=None):
+    '''
+    Converts a Value object to a sequence of NumPy arrays (if dense) or CSR arrays (if sparse).
+    '''
+    if hasattr(value, 'asarray'):
+        value = value.asarray()
+    else:
+        orig_type = type(value)
+        value = np.asarray(value)
+        if value.dtype == object:
+            raise ValueError('could not convert instance of type %s to '
+                             'an array'%orig_type)
+    if dtype is not None:
+        return value.astype(dtype)
+
+
+def asvalue(variable, data_array):
+    '''
+    Converts a sequence of NumPy arrays or CSR arrays to a Value object.
+    '''
+    return sanitize_batch(variable, data_array)
