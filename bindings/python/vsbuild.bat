@@ -23,7 +23,6 @@ set p_CNTK_PY34_PATH=%~8
 set p_CNTK_PY35_PATH=%~9
 shift
 set p_CNTK_PY36_PATH=%~9
-set p_OPENCV_WORLD=%~10
 
 REM Construct p_CNTK_PY_VERSIONS if not explicitly defined
 REM (Note: to disable Python build completely, no CNTK_PYx_PATH variable must be defined)
@@ -60,7 +59,9 @@ set PATH=%p_SWIG_PATH%;%PATH%
 set CNTK_COMPONENT_VERSION=%p_CNTK_COMPONENT_VERSION%
 set MSSdk=1
 set DISTUTILS_USE_SDK=1
-set %OPENCV_DLL%=%p_OPENCV_WORLD%.dll
+
+pushd "%CNTK_LIB_PATH%"
+if errorlevel 1 echo Cannot change directory.&exit /b 1
 
 set CNTK_LIBRARIES=
 for %%D in (
@@ -68,16 +69,12 @@ for %%D in (
   Cntk.Core-%CNTK_COMPONENT_VERSION%.dll
   Cntk.Deserializers.Binary-%CNTK_COMPONENT_VERSION%.dll
   Cntk.Deserializers.HTK-%CNTK_COMPONENT_VERSION%.dll
-  Cntk.Deserializers.Image-%CNTK_COMPONENT_VERSION%.dll
   Cntk.Deserializers.TextFormat-%CNTK_COMPONENT_VERSION%.dll
   Cntk.Math-%CNTK_COMPONENT_VERSION%.dll
   Cntk.ExtensibilityExamples-%CNTK_COMPONENT_VERSION%.dll
   Cntk.PerformanceProfiler-%CNTK_COMPONENT_VERSION%.dll
   libiomp5md.dll
   mkl_cntk_p.dll
-  %OPENCV_DLL%
-  zip.dll
-  zlib.dll
 ) do (
   if defined CNTK_LIBRARIES (
     set CNTK_LIBRARIES=!CNTK_LIBRARIES!;%CNTK_LIB_PATH%\%%D
@@ -86,16 +83,27 @@ for %%D in (
   )
 )
 
+@REM Cntk.Deserializers.Image-%CNTK_COMPONENT_VERSION%.dll (plus dependencies) is optional
+if exist Cntk.Deserializers.Image-%CNTK_COMPONENT_VERSION%.dll for %%D in (
+  Cntk.Deserializers.Image-%CNTK_COMPONENT_VERSION%.dll
+  opencv_world*.dll
+  zip.dll
+  zlib.dll
+) do set CNTK_LIBRARIES=!CNTK_LIBRARIES!;%CNTK_LIB_PATH%\%%D
+
 if /i %p_GpuBuild% equ true for %%D in (
-  cublas64_80.dll
-  cudart64_80.dll
-  cudnn64_5.dll
-  curand64_80.dll
-  cusparse64_80.dll
+  cublas64_*.dll
+  cudart64_*.dll
+  cudnn64_*.dll
+  curand64_*.dll
+  cusparse64_*.dll
   nvml.dll
 ) do (
   set CNTK_LIBRARIES=!CNTK_LIBRARIES!;%CNTK_LIB_PATH%\%%D
 )
+
+popd
+if errorlevel 1 echo Cannot restore directory.&exit /b 1
 
 REM Build everything in supplied order
 set oldPath=%PATH%
