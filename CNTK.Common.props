@@ -5,8 +5,8 @@
     <RepoRootPath>$(MSBuildThisFileDirectory)</RepoRootPath>
     <RelativeProjectPath>$(MSBuildProjectDirectory.Substring($(MSBuildThisFileDirectory.Length)))</RelativeProjectPath>
 
-    <OutDir>$(RepoRootPath)$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>$(RepoRootPath)$(Platform)\.build\$(Configuration)\$(RelativeProjectPath)\</IntDir>
+    <OutDir>$(RepoRootPath)$(Platform)\$(Configuration)_AVX\</OutDir>
+    <IntDir>$(RepoRootPath)$(Platform)\.build\$(Configuration)_AVX\$(RelativeProjectPath)\</IntDir>
 
     <DebugBuild>false</DebugBuild>
     <DebugBuild Condition="$(Configuration.StartsWith('Debug'))">true</DebugBuild>
