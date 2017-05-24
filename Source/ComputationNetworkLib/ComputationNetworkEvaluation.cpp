@@ -44,6 +44,14 @@ void ComputationNetwork::ForwardProp(const ComputationNodeBasePtr rootNode)
     GetNestedNetwork(rootNode)->ForwardProp(FrameRange(nullptr));
 }
 
+void ComputationNetwork::PostForwardAndBackProp(const ComputationNodeBasePtr rootNode)
+{
+    VerifyIsCompiled("PostForwardAndBackProp");
+
+    // traverse all nodes in the pre-determined evaluation order
+    GetNestedNetwork(rootNode)->PostForwardAndBackProp();
+}
+
 // set the gradient matrix of a (root) node 1.0
 // Returns false if the node is not a ComputationNode<ElemType>; see Backprop() below for intended use.
 template <class ElemType>
@@ -148,10 +156,22 @@ ComputationNetwork::PARTraversalFlowControlNode::PARTraversalFlowControlNode(con
     }
 }
 
+
 /*virtual*/ void ComputationNetwork::PARTraversalFlowControlNode::ForwardProp(const FrameRange& fr) /*override*/
 {
     for (auto& node : m_nestedNodes)
         ForwardProp(node, fr);
+}
+
+/*static*/ void ComputationNetwork::PARTraversalFlowControlNode::PostForwardAndBackProp(const ComputationNodeBasePtr& node)
+{
+    node->PostForwardAndBackProp();
+}
+
+/*virtual*/ void ComputationNetwork::PARTraversalFlowControlNode::PostForwardAndBackProp() /*override*/
+{
+    for (auto& node : m_nestedNodes)
+        PostForwardAndBackProp(node);
 }
 
 /*virtual*/ void ComputationNetwork::PARTraversalFlowControlNode::Backprop(const FrameRange& fr, bool childrenInThisLoop, bool childrenInOuterLoop) /*override*/
@@ -679,7 +699,7 @@ void ComputationNetwork::ValidateNetwork()
             RuntimeError("%ls operation has 0 elements", node->NodeName().c_str());
     }
     if (TraceLevel() > 0)
-    fprintf(stderr, "\n\n");
+        fprintf(stderr, "\n\n");
 
     // logging the non-default-layout nodes
     vector<ComputationNodeBasePtr> nonDefaultNodes;
@@ -829,6 +849,20 @@ void ComputationNetwork::MarkValueNonSharableNodes()
     for (auto& node : nodes)
     {
         auto inputs = node->GetInputs();
+
+        // Mark the UserDefinedV2FunctionNode and all its inputs as ValueNonShareable, since
+        // the inputs and outputs of a UDF may be externally preserved by the UDF implementation
+        // for bakcpropagation and thus reusing them within the network is not possible as 
+        // we do not control when the user actually releases the input/output Matrices that
+        // they may have help in the backprop state returned from the UDF's forward pass.
+        bool isUserDefinedV2FunctionNode = (node->OperationName() == L"UserDefinedV2Function");
+        if (isUserDefinedV2FunctionNode)
+        {
+            node->MarkValueNonSharable();
+            for (auto input : inputs)
+                input->MarkValueNonSharable();
+        }
+
         wstring myname = node->NodeName();
         bool allParametersOrPreComputeNodes = true;
 
