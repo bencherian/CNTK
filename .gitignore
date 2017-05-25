@@ -187,6 +187,7 @@ core
 Source/CNTK/buildinfo.h
 Source/CNTK/buildinfo.h$$
 Source/CNTKv2LibraryDll/buildinfo.h
+Source/CNTKv2LibraryDll/buildinfo.h$$
 Source/CNTKv2LibraryDll/tensorboard/tensorboard.pb.h
 Source/CNTKv2LibraryDll/tensorboard/tensorboard.pb.cc
 

@@ -23,6 +23,7 @@ set p_CNTK_PY34_PATH=%~8
 set p_CNTK_PY35_PATH=%~9
 shift
 set p_CNTK_PY36_PATH=%~9
+set p_OPENCV_WORLD=%~10
 
 REM Construct p_CNTK_PY_VERSIONS if not explicitly defined
 REM (Note: to disable Python build completely, no CNTK_PYx_PATH variable must be defined)
@@ -59,6 +60,7 @@ set PATH=%p_SWIG_PATH%;%PATH%
 set CNTK_COMPONENT_VERSION=%p_CNTK_COMPONENT_VERSION%
 set MSSdk=1
 set DISTUTILS_USE_SDK=1
+set %OPENCV_DLL%=%p_OPENCV_WORLD%.dll
 
 set CNTK_LIBRARIES=
 for %%D in (
@@ -73,7 +75,7 @@ for %%D in (
   Cntk.PerformanceProfiler-%CNTK_COMPONENT_VERSION%.dll
   libiomp5md.dll
   mkl_cntk_p.dll
-  opencv_world310.dll
+  %OPENCV_DLL%
   zip.dll
   zlib.dll
 ) do (
