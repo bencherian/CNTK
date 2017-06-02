@@ -179,7 +179,6 @@ if IS_PY2:
 
 setup(name="cntk",
       version="2.0.bc-master",
-      version="2.0rc3",
       ext_modules=[cntk_module],
       packages=packages,
       install_requires=cntk_install_requires,
