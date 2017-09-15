@@ -72,6 +72,7 @@ popd
 if errorlevel 1 echo Cannot restore directory.&exit /b 1
 
 REM Build everything in supplied order
+python setup.py build
 pip install .
 
 if not %ERRORLEVEL% == 0 echo Failed to build and install package& exit /b %ERRORLEVEL%
