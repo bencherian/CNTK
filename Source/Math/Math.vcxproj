@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Anaconda|x64">
+      <Configuration>Release_Anaconda</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release_NoOpt|x64">
       <Configuration>Release_NoOpt</Configuration>
       <Platform>x64</Platform>
@@ -58,6 +62,9 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <TargetName>Cntk.Math$(OutputSuffix)-$(CntkComponentVersion)</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Anaconda|x64'">
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -233,8 +240,8 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets" />
   <Target Name="CheckDependencies">
-    <Error Condition="'$(MathLibrary)' == 'MKL' And '$(CNTK_MKL_PATH)' == ''" Text="CNTK custom MKL location not specified, see https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-CNTK-on-Windows#mkl for instructions." />
-    <Error Condition="'$(MathLibrary)' == 'MKL' And !Exists('$(CNTKCustomMKLPath)')" Text="CNTK custom MKL version $(CNTKCustomMKLVersion) not found. See https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-CNTK-on-Windows#mkl for instructions." />
+    <Error Condition="'$(MathLibrary)' == 'MKL' And '$(CNTK_MKL_PATH)' == '' And !$(AnacondaBuild) " Text="CNTK custom MKL location not specified, see https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-CNTK-on-Windows#mkl for instructions." />
+    <Error Condition="'$(MathLibrary)' == 'MKL' And !Exists('$(CNTKCustomMKLPath)') And !$(AnacondaBuild)" Text="CNTK custom MKL version $(CNTKCustomMKLVersion) not found. See https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-CNTK-on-Windows#mkl for instructions." />
     <Error Condition="'$(MathLibrary)' == 'OpenBLAS' And '$(CNTK_OPENBLAS_PATH)' == ''" Text="CNTK custom OpenBLAS location not specified, see https://docs.microsoft.com/cognitive-toolkit/Setup-UWP-Build-on-Windows for instructions." />
     <Error Condition="'$(MathLibrary)' == 'OpenBLAS' And !Exists('$(CNTKCustomOpenBLASPath)')" Text="CNTK custom OpenBLAS version $(CNTKCustomOpenBLASVersion) not found. See https://docs.microsoft.com/cognitive-toolkit/Setup-UWP-Build-on-Windows for instructions." />
     <Error Condition="!$(HasBoost)" Text="The Boost library is required to build. Please see https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-CNTK-on-Windows#boost for installation instructions." />

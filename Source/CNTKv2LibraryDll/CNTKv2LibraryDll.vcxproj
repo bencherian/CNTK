@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Anaconda|x64">
+      <Configuration>Release_Anaconda</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release_NoOpt|x64">
       <Configuration>Release_NoOpt</Configuration>
       <Platform>x64</Platform>
@@ -67,7 +71,8 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>.\API;.\proto;$(BOOST_INCLUDE_PATH);$(SolutionDir)\Source\CNTKv2LibraryDll;$(SolutionDir)Source\SGDLib;$(SolutionDir)Source\Readers\ReaderLib;$(SolutionDir)Source\ComputationNetworkLib;$(SolutionDir)Source\SequenceTrainingLib;$(SolutionDir)Source\Math;$(SolutionDir)Source\Common\Include;$(SolutionDir)Source\CNTK\BrainScript;$(SolutionDir)Source\ActionsLib;$(MSMPI_INC);$(NvmlInclude);$(ProtobufInclude);$(SolutionDir)Source\PerformanceProfilerDll</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="!$(AnacondaBuild)">.\API;.\proto;$(BOOST_INCLUDE_PATH);$(SolutionDir)\Source\CNTKv2LibraryDll;$(SolutionDir)Source\SGDLib;$(SolutionDir)Source\Readers\ReaderLib;$(SolutionDir)Source\ComputationNetworkLib;$(SolutionDir)Source\SequenceTrainingLib;$(SolutionDir)Source\Math;$(SolutionDir)Source\Common\Include;$(SolutionDir)Source\CNTK\BrainScript;$(SolutionDir)Source\ActionsLib;$(MSMPI_INC);$(NvmlInclude);$(ProtobufInclude);$(SolutionDir)Source\PerformanceProfilerDll</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories Condition="$(AnacondaBuild)">.\API;.\proto;$(LIBRARY_INC);$(SolutionDir)\Source\CNTKv2LibraryDll;$(SolutionDir)Source\SGDLib;$(SolutionDir)Source\Readers\ReaderLib;$(SolutionDir)Source\ComputationNetworkLib;$(SolutionDir)Source\SequenceTrainingLib;$(SolutionDir)Source\Math;$(SolutionDir)Source\Common\Include;$(SolutionDir)Source\CNTK\BrainScript;$(SolutionDir)Source\ActionsLib;$(MSMPI_INC);$(NvmlInclude);$(ProtobufInclude);$(SolutionDir)Source\PerformanceProfilerDll</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(CNTK_ENABLE_1BitSGD)'=='true' and '!$(IsUWP)'">$(SolutionDir)Source\1BitSGD;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(CNTK_ENABLE_1BitSGD)'=='true' and '!$(IsUWP)'">CNTK_PARALLEL_TRAINING_SUPPORT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <OpenMPSupport>true</OpenMPSupport>

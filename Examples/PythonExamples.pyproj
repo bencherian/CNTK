@@ -22,6 +22,9 @@
     <VisualStudioVersion Condition=" '$(VisualStudioVersion)' == '' ">10.0</VisualStudioVersion>
     <PtvsTargetsFile>$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets</PtvsTargetsFile>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release_Anaconda' ">
+    <OutputPath>bin\Release_Anaconda\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\bindings\python\cntk\ops\tests\block_test.py">
       <Link>Tests\cntk\ops\tests\block_test.py</Link>

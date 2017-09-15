@@ -361,6 +361,7 @@
     <None Include="cntk\ops\tests\sequence_test.py">
       <Filter>cntk\ops\tests</Filter>
     </None>
+    <None Include="anaconda-vsbuild.bat" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cntk\cntk_py_wrap.h">

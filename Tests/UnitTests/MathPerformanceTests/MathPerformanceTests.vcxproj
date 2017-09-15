@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Anaconda|x64">
+      <Configuration>Release_Anaconda</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release_NoOpt|x64">
       <Configuration>Release_NoOpt</Configuration>
       <Platform>x64</Platform>
@@ -99,7 +103,7 @@
     <CudaCompile>
       <TargetMachinePlatform>64</TargetMachinePlatform>
       <CodeGeneration>$(NvidiaCompute)</CodeGeneration>
-    </CudaCompile>    
+    </CudaCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="$(CpuOnlyBuild)">
     <ClCompile>

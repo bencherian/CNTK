@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Anaconda|x64">
+      <Configuration>Release_Anaconda</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release_NoOpt|x64">
       <Configuration>Release_NoOpt</Configuration>
       <Platform>x64</Platform>
@@ -78,8 +82,8 @@
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Optimization>Disabled</Optimization>
       <MinimalRebuild>false</MinimalRebuild>
-       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-     </ClCompile>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
     <Link />
     <ProjectReference>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>

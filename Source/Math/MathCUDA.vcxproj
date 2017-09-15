@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Anaconda|x64">
+      <Configuration>Release_Anaconda</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release_NoOpt|x64">
       <Configuration>Release_NoOpt</Configuration>
       <Platform>x64</Platform>
@@ -27,7 +31,7 @@
   <Import Project="$(SolutionDir)\CNTK.Cpp.props" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <Choose>
-    <When Condition="Exists('$(CUDNN_PATH)')">
+    <When Condition="Exists('$(CUDNN_PATH)') Or $(AnacondaBuild)">
       <PropertyGroup>
         <UseCuDnn>true</UseCuDnn>
         <CuDnnDefine>USE_CUDNN</CuDnnDefine>
@@ -57,6 +61,9 @@
   <PropertyGroup>
     <TargetName>Cntk.Math.Cuda-$(CntkComponentVersion)</TargetName>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release_Anaconda|x64'">
+    <PostBuildEventUseInBuild>false</PostBuildEventUseInBuild>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -85,7 +92,7 @@
       <AdditionalOptions>-Xcudafe "--diag_suppress=field_without_dll_interface" -Xcompiler "/wd 4819" %(AdditionalOptions)</AdditionalOptions>
     </CudaCompile>
     <PostBuildEvent>
-      <Command>for %%l in ($(CudaDlls)) do if exist "$(CudaPath)\bin\%%l" xcopy /D /Y "$(CudaPath)\bin\%%l*" "$(OutputPath)"
+      <Command>for %%l in ($(CudaDlls)) do if exist "$(LIBRARY_BIN)\%%l" xcopy /D /Y "$(LIBRARY_BIN)\%%l*" "$(OutputPath)"
 xcopy /D /Y "$(CuDnnDll)" "$(OutputPath)"
 </Command>
     </PostBuildEvent>
@@ -147,8 +154,10 @@ xcopy /D /Y "$(CuDnnDll)" "$(OutputPath)"
     </CudaCompile>
     <CudaCompile Include="GPUTensor.cu">
       <InterleaveSourceInPTX Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</InterleaveSourceInPTX>
+      <InterleaveSourceInPTX Condition="'$(Configuration)|$(Platform)'=='Release_Anaconda|x64'">true</InterleaveSourceInPTX>
       <InterleaveSourceInPTX Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">true</InterleaveSourceInPTX>
       <Keep Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</Keep>
+      <Keep Condition="'$(Configuration)|$(Platform)'=='Release_Anaconda|x64'">true</Keep>
       <Keep Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">true</Keep>
       <FileType>CppCode</FileType>
     </CudaCompile>
@@ -184,8 +193,10 @@ xcopy /D /Y "$(CuDnnDll)" "$(OutputPath)"
     <CudaCompile Include="GPUMatrix.cu">
       <FileType>CppCode</FileType>
       <Keep Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</Keep>
+      <Keep Condition="'$(Configuration)|$(Platform)'=='Release_Anaconda|x64'">true</Keep>
       <Keep Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">true</Keep>
       <InterleaveSourceInPTX Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</InterleaveSourceInPTX>
+      <InterleaveSourceInPTX Condition="'$(Configuration)|$(Platform)'=='Release_Anaconda|x64'">false</InterleaveSourceInPTX>
       <InterleaveSourceInPTX Condition="'$(Configuration)|$(Platform)'=='Release_NoOpt|x64'">false</InterleaveSourceInPTX>
     </CudaCompile>
     <CudaCompile Include="GPUMatrixCUDAKernels.cuh">
