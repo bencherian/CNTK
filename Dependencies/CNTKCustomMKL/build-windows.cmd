@@ -114,6 +114,41 @@ for %%t in (
   @REM TODO manifest?
 )
 
+for %%t in (
+  parallel_dyn
+) do (
+
+  set TFIRSTCHAR=%%t
+  set TFIRSTCHAR=!TFIRSTCHAR:~0,1!
+  set LIBBASENAME=mkl_cntk_!TFIRSTCHAR!
+
+  echo.
+  echo Calling NMAKE dllintel64 export=functions.txt threading=parallel name=!LIBBASENAME! MKLROOT="%MKLROOT%".
+  NMAKE /f "%MKLBUILDERROOT%\makefile" ^
+    libintel64 ^
+    export=functions.txt ^
+    threading=parallel ^
+    name=!LIBBASENAME! ^
+    MKLROOT="%MKLROOT%"
+
+  if errorlevel 1 (
+    echo Error: NMAKE.exe for threading=%%t failed.
+    exit /b 1
+  )
+
+  mkdir Publish\%CNTKCUSTOMMKLVERSION%\x64\%%t
+  if errorlevel 1 exit /b 1
+
+  move !LIBBASENAME!.dll Publish\%CNTKCUSTOMMKLVERSION%\x64\%%t
+  if errorlevel 1 exit /b 1
+
+  move !LIBBASENAME!.lib Publish\%CNTKCUSTOMMKLVERSION%\x64\%%t
+  if errorlevel 1 exit /b 1
+
+  del !LIBBASENAME!*
+  if errorlevel 1 exit /b 1
+  @REM TODO manifest?
+)
 echo.
 echo Copying libiomp5md.dll.
 

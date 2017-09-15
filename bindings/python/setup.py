@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import sys
 import os
 import shutil
@@ -8,6 +10,10 @@ from setuptools import setup, Extension, find_packages
 import numpy
 
 IS_WINDOWS = platform.system() == 'Windows'
+
+IS_CONDA_BUILD = 'CONDA_BUILD' in os.environ
+
+print("Is Conda Build: %s" % IS_CONDA_BUILD)
 
 IS_PY2 = sys.version_info.major == 2
 
@@ -33,13 +39,19 @@ if IS_WINDOWS:
               "  set DISTUTILS_USE_SDK=1\n")
         sys.exit(1)
 
-CNTK_PATH = os.path.join(os.path.dirname(__file__), "..", "..")
-CNTK_SOURCE_PATH = os.path.join(CNTK_PATH, "Source")
 PROJ_LIB_PATH = os.path.join(os.path.dirname(__file__), "cntk", "libs")
+CNTK_PATH = os.path.join(os.path.dirname(__file__), "..", "..")
 
 if 'CNTK_LIB_PATH' in os.environ:
+    print("Using CNTK lib path from env var")
     CNTK_LIB_PATH = os.environ['CNTK_LIB_PATH']
+    if IS_CONDA_BUILD:
+        CNTK_PATH = os.path.abspath(os.path.join(CNTK_LIB_PATH, "..", ".."))
+        PROJ_LIB_PATH = os.path.join(CNTK_PATH, "bindings", "python", "cntk", "libs")
 else:
+    if IS_CONDA_BUILD:
+        print("Must be called with CNTK_LIB_PATH in environment for building conda package.")
+        sys.exit(1)
     # Assumes GPU SKU is being built
     if IS_WINDOWS:
         CNTK_LIB_PATH = os.path.join(CNTK_PATH, "x64", "Release")
@@ -47,8 +59,10 @@ else:
         CNTK_LIB_PATH = os.path.join(
             CNTK_PATH, "build", "gpu", "release", "lib")
 
+CNTK_SOURCE_PATH = os.path.join(CNTK_PATH, "Source")
 print("Using CNTK sources at '%s'" % os.path.abspath(CNTK_SOURCE_PATH))
 print("Using CNTK libs at '%s'" % os.path.abspath(CNTK_LIB_PATH))
+print("Python libs path at '%s'" % os.path.abspath(PROJ_LIB_PATH))
 
 
 def lib_path(fn):
@@ -163,6 +177,9 @@ package_data = { 'cntk': ['pytest.ini', 'io/tests/tf_data.txt', 'contrib/deeprl/
 if IS_WINDOWS:
     # On Windows copy all runtime libs to the base folder of Python
     kwargs = dict(data_files = [('.', [ os.path.join('cntk', lib) for lib in rt_libs ])],
+                  package_data = package_data)
+    if IS_CONDA_BUILD:
+        kwargs = dict(data_files = [(os.environ["LIBRARY_BIN"], [ os.path.join('cntk', lib) for lib in rt_libs ])],
                   package_data = package_data)
 else:
     # On Linux copy all runtime libs into the cntk/lib folder.
