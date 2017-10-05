@@ -44,8 +44,13 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup>
+  <PropertyGroup Condition="$(AnacondaBuild)">
     <NMakeBuildCommandLine>.\anaconda-vsbuild.bat "$(OutDir)" "$(DebugBuild)" "$(GpuBuild)" "$(CntkComponentVersion)" "$(SWIG_PATH)" "$(PY_VER)"</NMakeBuildCommandLine>
+    <NMakeOutput>dist/pythonwheel</NMakeOutput>
+    <NMakeCleanCommandLine>rmdir /s /q build</NMakeCleanCommandLine>
+  </PropertyGroup>
+  <PropertyGroup Condition="!$(AnacondaBuild)">
+    <NMakeBuildCommandLine>.\vsbuild.bat "$(OutDir)" "$(DebugBuild)" "$(GpuBuild)" "$(CntkComponentVersion)" "$(SWIG_PATH)" "$(CNTK_PY_VERSIONS)" "$(CNTK_PY27_PATH)" "$(CNTK_PY34_PATH)" "$(CNTK_PY35_PATH)" "$(CNTK_PY36_PATH)"</NMakeBuildCommandLine>
     <NMakeOutput>dist/pythonwheel</NMakeOutput>
     <NMakeCleanCommandLine>rmdir /s /q build</NMakeCleanCommandLine>
   </PropertyGroup>
