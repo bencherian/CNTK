@@ -94,10 +94,10 @@ public:
     ElemType Adagrad(CPUMatrix<ElemType>& gradients, const bool needAveMultiplier);
     
     void FSAdagrad(CPUMatrix<ElemType>& gradients, CPUMatrix<ElemType>& functionValues, ElemType learnRatePerSample, 
-                   ElemType momentum, ElemType adaWeight, ElemType adaMul, bool unitGainMomentum);
+                   ElemType momentum, ElemType adaWeight, ElemType adaMul, ElemType unitGainFactor);
 
     void Adam(CPUMatrix<ElemType>& gradients, CPUMatrix<ElemType>& functionValues, ElemType learnRatePerSample,
-              ElemType momentum, ElemType adaWeight, ElemType adaMul, ElemType epsilon, bool unitGainMomentum, bool adamax=false);
+              ElemType momentum, ElemType adaWeight, ElemType adaMul, ElemType epsilon, ElemType unitGainFactor, bool adamax=false);
 
     ElemType RmsProp(CPUMatrix<ElemType>& gradients,
                      ElemType RMS_GAMMA,
@@ -109,6 +109,7 @@ public:
                      const bool initialized);
 
     void AdaDelta(CPUMatrix<ElemType>& gradients, CPUMatrix<ElemType>& functionValues, ElemType learningRate, ElemType rho, ElemType epsilon);
+    void AdaDeltaFlushTimestamps(size_t cols, ElemType rho, int* timestamps, int currentTimestamp);
 
     void Reshape(const size_t numRows, const size_t numCols);
 
@@ -228,6 +229,9 @@ public:
     CPUMatrix<ElemType>& InplaceTanh();
     CPUMatrix<ElemType>& AssignTanhOf(const CPUMatrix<ElemType>& a);
 
+    CPUMatrix<ElemType>& InplaceAtanh();
+    CPUMatrix<ElemType>& AssignAtanhOf(const CPUMatrix<ElemType>& a);
+
     CPUMatrix<ElemType>& InplaceLogSoftmax(const bool isColWise);
     CPUMatrix<ElemType>& AssignLogSoftmaxOf(const CPUMatrix<ElemType>& a, const bool isColWise);
 
@@ -255,6 +259,18 @@ public:
 
     CPUMatrix<ElemType>& InplaceNegativeSine();
     CPUMatrix<ElemType>& AssignNegativeSineOf(const CPUMatrix<ElemType>& a);
+
+    CPUMatrix<ElemType>& InplaceAcos();
+    CPUMatrix<ElemType>& AssignAcosOf(const CPUMatrix<ElemType>& a);
+
+    CPUMatrix<ElemType>& InplaceAsin();
+    CPUMatrix<ElemType>& AssignAsinOf(const CPUMatrix<ElemType>& a);
+
+    CPUMatrix<ElemType>& InplaceCosh();
+    CPUMatrix<ElemType>& AssignCoshOf(const CPUMatrix<ElemType>& a);
+
+    CPUMatrix<ElemType>& InplaceSinh();
+    CPUMatrix<ElemType>& AssignSinhOf(const CPUMatrix<ElemType>& a);
 
     CPUMatrix<ElemType>& InplaceAbs();
     CPUMatrix<ElemType>& AssignAbsOf(const CPUMatrix<ElemType>& a);
@@ -384,7 +400,7 @@ public:
     void MaxPoolingForward(const CPUMatrix<int>& mpRowCol, const CPUMatrix<int>& mpRowIndices, const CPUMatrix<int>& indices, CPUMatrix<ElemType>& output) const;
     void MaxPoolingBackward(const CPUMatrix<ElemType>& out, const CPUMatrix<ElemType>& in,
                             const CPUMatrix<int>& mpRowCol, const CPUMatrix<int>& mpRowIndices, const CPUMatrix<int>& indices,
-                            CPUMatrix<ElemType>& grad) const;
+                            CPUMatrix<ElemType>& grad, bool accumulateGradient) const;
 
     void MaxROIPoolingForward(const size_t numRois, const size_t numImg, const size_t channels, const size_t width, const size_t height,
                               const size_t pooledWidth, const size_t pooledHeight, const CPUMatrix<ElemType>& roiData, CPUMatrix<ElemType>& output, CPUMatrix<ElemType>& argmax, double spatialScale) const;
@@ -396,7 +412,7 @@ public:
 
     void AveragePoolingForward(const CPUMatrix<int>& mpRowCol, const CPUMatrix<int>& mpRowIndices, const CPUMatrix<int>& indices, CPUMatrix<ElemType>& output, const bool poolIncludePad) const;
     void AveragePoolingBackward(const CPUMatrix<int>& mpRowCol, const CPUMatrix<int>& mpRowIndices, const CPUMatrix<int>& indices,
-                                CPUMatrix<ElemType>& grad, const bool poolIncludePad) const;
+                                CPUMatrix<ElemType>& grad, const bool poolIncludePad, bool accumulateGradient) const;
 
     void BatchNormalizationForward(const CPUMatrix<ElemType>& scale, const CPUMatrix<ElemType>& bias, bool inferenceOnly, double expAvgFactor, double blendFactor, CPUMatrix<ElemType>& runMean, CPUMatrix<ElemType>& runVariance,
                                    CPUMatrix<ElemType>& out, double epsilon, CPUMatrix<ElemType>& saveMean, CPUMatrix<ElemType>& saveInvStdDev) const;
