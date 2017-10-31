@@ -45,7 +45,7 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="$(AnacondaBuild)">
-    <NMakeBuildCommandLine>.\anaconda-vsbuild.bat "$(OutDir)" "$(DebugBuild)" "$(GpuBuild)" "$(CntkComponentVersion)" "$(SWIG_PATH)" "$(PY_VER)"</NMakeBuildCommandLine>
+    <NMakeBuildCommandLine>.\anaconda-vsbuild.bat "$(OutDir)" "$(DebugBuild)" "$(GpuBuild)" "$(CntkComponentVersion)"</NMakeBuildCommandLine>
     <NMakeOutput>dist/pythonwheel</NMakeOutput>
     <NMakeCleanCommandLine>rmdir /s /q build</NMakeCleanCommandLine>
   </PropertyGroup>

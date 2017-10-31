@@ -18,7 +18,6 @@ set p_GpuBuild=%~3
 set p_CNTK_COMPONENT_VERSION=%~4
 set p_SWIG_PATH=%LIBRARY_BIN%
 
-REM (Note: to disable Python build completely, no CNTK_PYx_PATH variable must be defined)
 if not defined CONDA_BUILD (
 	echo Release_Anaconda should only be built through conda build, exiting.&exit /b 1
 )
@@ -67,6 +66,8 @@ if /i %p_GpuBuild% equ true for %%D in (
 ) do (
   set CNTK_LIBRARIES=!CNTK_LIBRARIES!;%CNTK_LIB_PATH%\%%D
 )
+
+echo CNTK DLLs %CNTK_LIBRARIES%
 
 popd
 if errorlevel 1 echo Cannot restore directory.&exit /b 1

@@ -1706,7 +1706,6 @@ Global
 		{A4FC3467-4787-43E8-BBC0-D79AE56B468D}.Debug|x64.ActiveCfg = Debug|x64
 		{A4FC3467-4787-43E8-BBC0-D79AE56B468D}.Debug|x64.Build.0 = Debug|x64
 		{A4FC3467-4787-43E8-BBC0-D79AE56B468D}.Release_Anaconda|x64.ActiveCfg = Release_Anaconda|x64
-		{A4FC3467-4787-43E8-BBC0-D79AE56B468D}.Release_Anaconda|x64.Build.0 = Release_Anaconda|x64
 		{A4FC3467-4787-43E8-BBC0-D79AE56B468D}.Release_CpuOnly|x64.ActiveCfg = Release_CpuOnly|x64
 		{A4FC3467-4787-43E8-BBC0-D79AE56B468D}.Release_CpuOnly|x64.Build.0 = Release_CpuOnly|x64
 		{A4FC3467-4787-43E8-BBC0-D79AE56B468D}.Release_NoOpt|x64.ActiveCfg = Release_NoOpt|x64
@@ -1971,7 +1970,6 @@ Global
 		{CDA96AA3-3252-4978-A0BF-2ACD670823CB}.Debug|x64.ActiveCfg = Debug|x64
 		{CDA96AA3-3252-4978-A0BF-2ACD670823CB}.Debug|x64.Build.0 = Debug|x64
 		{CDA96AA3-3252-4978-A0BF-2ACD670823CB}.Release_Anaconda|x64.ActiveCfg = Release_Anaconda|x64
-		{CDA96AA3-3252-4978-A0BF-2ACD670823CB}.Release_Anaconda|x64.Build.0 = Release_Anaconda|x64
 		{CDA96AA3-3252-4978-A0BF-2ACD670823CB}.Release_CpuOnly|x64.ActiveCfg = Release_CpuOnly|x64
 		{CDA96AA3-3252-4978-A0BF-2ACD670823CB}.Release_CpuOnly|x64.Build.0 = Release_CpuOnly|x64
 		{CDA96AA3-3252-4978-A0BF-2ACD670823CB}.Release_NoOpt|x64.ActiveCfg = Release_NoOpt|x64
