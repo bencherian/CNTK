@@ -657,6 +657,7 @@ MAKE_GETTER(CNTK::Axis, StaticAxisIndex);
 %ignore CNTK::Value::CreateSequenceDouble(size_t dimension, size_t sequenceLength, const CNTK::SparseIndexType* colStarts, const CNTK::SparseIndexType* rowIndices, const double* nonZeroValues, size_t numNonZeroValues, bool sequenceStartFlag, const CNTK::DeviceDescriptor& device, bool readOnly = false);
 %rename (isSparse) CNTK::NDArrayView::IsSparse;
 %rename (isReadOnly) CNTK::NDArrayView::IsReadOnly;
+%rename (isSliceView) CNTK::NDArrayView::IsSliceView;
 %rename (alias) CNTK::NDArrayView::Alias;
 %rename (sliceView) CNTK::NDArrayView::SliceView;
 %rename (getDataType) CNTK::NDArrayView::GetDataType;
@@ -735,6 +736,7 @@ RENAME_AND_MAKE_PRIVATE(CNTK::Function, Save);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, Clone);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, Evaluate);
 RENAME_AND_MAKE_PRIVATE(CNTK::Function, FindByName);
+RENAME_AND_MAKE_PRIVATE(CNTK::Trainer, TrainMinibatch);
 // Customize type mapping for modelBuffer, used by Load
 %typemap(ctype) (char* buffer) "char*"
 %typemap(imtype) (char* buffer) "byte[]"
@@ -785,6 +787,7 @@ RENAME_AND_MAKE_PRIVATE(CNTK::Constant, ScalarDouble);
 %apply int OUTPUT[]  { int *numNonZeroValues }
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, IsSparse);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, IsReadOnly);
+RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, IsSliceView);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, Alias);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, SliceView);
 RENAME_AND_MAKE_PRIVATE(CNTK::NDArrayView, GetDataType);

@@ -16,7 +16,6 @@
 
     <NvmlDll>%ProgramW6432%\NVIDIA Corporation\NVSMI\nvml.dll</NvmlDll>
     <NvmlDll Condition="Exists('c:\local\bindrop\NVSMI\nvml.dll')">c:\local\bindrop\NVSMI\nvml.dll</NvmlDll>
-    <MKLROOT Condition="!Exists('$(MKLROOT)')">%ProgramFiles(x86)%\IntelSWTools\compilers_and_libraries\windows\mkl</MKLROOT>
 
     <HasOpenCv>false</HasOpenCv>
     <HasOpenCv Condition="Exists('$(OPENCV_PATH)') Or Exists('$(OPENCV_PATH_V31)') Or Exists('$(OPENCV_PATH_V32)') Or Exists('$(OPENCV_PATH_V33)')">true</HasOpenCv>
@@ -74,48 +73,31 @@
     <ReaderLibs>Cntk.Reader$(OutputSuffix)-$(CntkComponentVersion).lib;Cntk.Common$(OutputSuffix)-$(CntkComponentVersion).lib;Cntk.Math$(OutputSuffix)-$(CntkComponentVersion).lib;</ReaderLibs>
   </PropertyGroup>
 
+  <PropertyGroup Condition="!$(IsUWP)">
+    <MathLibrary>MKL</MathLibrary>
+    <ReaderLibs>Cntk.PerformanceProfiler-$(CntkComponentVersion).lib;$(ReaderLibs)</ReaderLibs>
+  </PropertyGroup>  
+
   <PropertyGroup Condition="!$(IsUWP) And !$(AnacondaBuild)">
-    <MathLibrary>MKL</MathLibrary>
-    <CNTKCustomMKLVersion>3</CNTKCustomMKLVersion>
-    <CNTKCustomMKLPath>$(CNTK_MKL_PATH)\$(CNTKCustomMKLVersion)</CNTKCustomMKLPath>
-    <MathIncludePath>$(CNTKCustomMKLPath)\include</MathIncludePath>
+    <MathIncludePath>$(MKLML_PATH)\include</MathIncludePath>
+    <MathLibraryPath>$(MKLML_PATH)\lib</MathLibraryPath>
     <MathDefine>USE_MKL</MathDefine>
+    <MathLibraryName>MKL-ML Library</MathLibraryName>
+    <MathLinkLibrary>mklml.lib</MathLinkLibrary>
+    <MathDelayLoad>mklml.dll</MathDelayLoad>
     <!-- Only non-UWP configurations consume PerformanceProfiler -->
-    <ReaderLibs>Cntk.PerformanceProfiler-$(CntkComponentVersion).lib;$(ReaderLibs)</ReaderLibs>
-  </PropertyGroup>
-  <PropertyGroup Condition="$(AnacondaBuild)">
-    <MathLibrary>MKL</MathLibrary>
-    <CNTKCustomMKLVersion>Anaconda</CNTKCustomMKLVersion>
-    <CNTKCustomMKLPath>$(LIBRARY_PREFIX)</CNTKCustomMKLPath>
-    <MathIncludePath>$(LIBRARY_INC)</MathIncludePath>
-    <MathDefine>USE_MKL</MathDefine>
-    <!-- Only non-UWP configurations consume PerformanceProfiler -->
-    <ReaderLibs>Cntk.PerformanceProfiler-$(CntkComponentVersion).lib;$(ReaderLibs)</ReaderLibs>
-  </PropertyGroup>
-  <PropertyGroup Condition="!$(IsUWP) And '$(CNTK_MKL_SEQUENTIAL)' != '1' And !$(AnacondaBuild)">
-    <MathLibraryName>CNTK custom MKL Parallel (Version: $(CNTKCustomMKLVersion))</MathLibraryName>
-    <MathLibraryPath>$(CNTKCustomMKLPath)\x64\parallel</MathLibraryPath>
-    <MathLinkLibrary>mkl_cntk_p.lib</MathLinkLibrary>
-    <MathDelayLoad>mkl_cntk_p.dll</MathDelayLoad>
     <MathPostBuildCopyPattern>$(MathLibraryPath)\*.dll</MathPostBuildCopyPattern>
-    <UnitTestDlls>$(OutDir)mkl_cntk_p.dll;$(OutDir)libiomp5md.dll;</UnitTestDlls>
+    <UnitTestDlls>$(OutDir)mklml.lib;$(OutDir)libiomp5md.dll;</UnitTestDlls>
   </PropertyGroup>
-  
+
   <PropertyGroup Condition="$(AnacondaBuild)">
-    <MathLibraryName>CNTK SDL MKL for Anaconda</MathLibraryName>
+    <MathLibraryName>SDL MKL for Anaconda</MathLibraryName>
+    <MathIncludePath>$(LIBRARY_INC)</MathIncludePath>
     <MathLibraryPath>$(LIBRARY_LIB)</MathLibraryPath>
+    <MathDefine>USE_MKL</MathDefine>
     <MathLinkLibrary>mkl_rt.lib</MathLinkLibrary>
     <MathDelayLoad>mkl_rt.dll</MathDelayLoad>
     <MathPostBuildCopyPattern />
-  </PropertyGroup>
-
-  <PropertyGroup Condition="!$(IsUWP) And '$(CNTK_MKL_SEQUENTIAL)' == '1' And !$(AnacondaBuild)">
-    <MathLibraryName>CNTK custom MKL Sequential (Version: $(CNTKCustomMKLVersion))</MathLibraryName>
-    <MathLibraryPath>$(CNTKCustomMKLPath)\x64\sequential</MathLibraryPath>
-    <MathLinkLibrary>mkl_cntk_s.lib</MathLinkLibrary>
-    <MathDelayLoad>mkl_cntk_s.dll</MathDelayLoad>
-    <MathPostBuildCopyPattern>$(MathLibraryPath)\*.dll</MathPostBuildCopyPattern>
-    <UnitTestDlls>$(OutDir)mkl_cntk_s.dll;</UnitTestDlls>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(UseZip) and !$(AnacondaBuild)">
@@ -264,7 +246,6 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

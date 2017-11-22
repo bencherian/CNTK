@@ -784,6 +784,11 @@ namespace CNTK
         ///
         bool IsReadOnly() const { return m_isReadOnly; }
 
+        ///
+        /// Returns a boolean indicating if 'this' view is slice.
+        ///
+        CNTK_API bool IsSliceView();
+
         // TODO: The set methods should be offered in template from
         ///
         /// Fill 'this' NDArrayView with the specified value. The underlying DataType of 'this' view should be DataType::Float.
@@ -3239,6 +3244,11 @@ namespace CNTK
         CNTK_API FunctionPtr Clone(ParameterCloningMethod parameterCloneMethod = ParameterCloningMethod::Clone, const std::unordered_map<Variable, Variable>& replacements = {}) const;
 
         ///
+        /// Clones 'this' Function with flattening(removing all block functions). Parameters as above.
+        ///
+        CNTK_API FunctionPtr CloneFlattened(ParameterCloningMethod parameterCloneMethod = ParameterCloningMethod::Share) const;
+
+        ///
         /// Deserializes a Function from the model dictionary, using the specified UDF deserializer to
         //  reconstruct user defined functions if the model contains any (in which case an exception will be raised
         /// if deserializer was omitted). If there are no user defined functions in the model, deserializer is ignored.
@@ -3377,6 +3387,16 @@ namespace CNTK
             return FilteredInputs<Variable>([](const Variable& var) {
                 return var.IsPlaceholder();
             });
+        }
+
+        ///
+        ///  Recursively traverses the Function graph underlying 'this' Function invoking the provided functor for all visited nodes in the graph.
+        ///  A wrapper for PreorderTraverseFunctions.
+        ///
+        template <typename FunctionType>
+        void PreorderTraverse(const FunctionType& functor, bool traverseInsideBlockFunction = false)
+        {
+            PreorderTraverseFunctions(RootFunction(), functor, traverseInsideBlockFunction);
         }
 
         ///
@@ -3547,16 +3567,21 @@ namespace CNTK
             visitedFunctions.insert(rootFunction);
             functor(rootFunction);
 
-            if (traverseInsideBlockFunction && rootFunction->IsBlock())
-                PreorderTraverseFunctions(rootFunction->BlockRoot(), visitedFunctions, functor, traverseInsideBlockFunction);
-
-            std::vector<Variable> rootFunctionInputs = rootFunction->Inputs();
-            for (const auto& rootInput : rootFunctionInputs)
+            if (rootFunction->IsComposite())
+                PreorderTraverseFunctions(rootFunction->RootFunction(), visitedFunctions, functor, traverseInsideBlockFunction);
+            else
             {
-                if (rootInput.IsOutput() && visitedFunctions.find(rootInput.Owner()) == visitedFunctions.end())
+                if (traverseInsideBlockFunction && rootFunction->IsBlock())
+                    PreorderTraverseFunctions(rootFunction->BlockRoot(), visitedFunctions, functor, traverseInsideBlockFunction);
+
+                std::vector<Variable> rootFunctionInputs = rootFunction->Inputs();
+                for (const auto& rootInput : rootFunctionInputs)
                 {
-                    const auto& function = rootInput.Owner();
-                    PreorderTraverseFunctions(function, visitedFunctions, functor, traverseInsideBlockFunction);
+                    if (rootInput.IsOutput() && visitedFunctions.find(rootInput.Owner()) == visitedFunctions.end())
+                    {
+                        const auto& function = rootInput.Owner();
+                        PreorderTraverseFunctions(function, visitedFunctions, functor, traverseInsideBlockFunction);
+                    }
                 }
             }
         }
@@ -3620,7 +3645,19 @@ namespace CNTK
                                  const std::unordered_map<Variable, Variable>& replacements,
                                  std::unordered_map<const Function*, FunctionPtr>& cloneMap,
                                  std::unordered_map<Variable, Variable>& leafVariablesCloneMap,
-                                 std::unordered_map<Variable, Variable>& placeholderReplacements);
+                                 std::unordered_map<Variable, Variable>& placeholderReplacements,
+                                 std::function<FunctionPtr(const FunctionPtr&, const std::vector<Variable>&)> clone);
+
+        static FunctionPtr CloneFunction(const FunctionPtr& clonee,
+            const std::vector<Variable>& clonedInputs);
+
+        static FunctionPtr FlattenFunction(const FunctionPtr& clonee,
+            const std::vector<Variable>& clonedInputs);
+
+        FunctionPtr CloneImpl(
+            ParameterCloningMethod parameterCloneMethod,
+            const std::unordered_map<Variable, Variable>& replacements,
+            std::function<FunctionPtr(const FunctionPtr&, const std::vector<Variable>&)> clone) const;
 
         // Disallow copy and move construction and assignment
         Function(const Function&) = delete; Function(Function&&) = delete; Function& operator=(const Function&) = delete; Function& operator=(Function&&) = delete;
@@ -4343,6 +4380,7 @@ namespace CNTK
                                             double blendTimeConstant = 0,
                                             double epsilon = 0.00001,
                                             bool useCuDNNEngine = true,
+                                            bool disableRegularization = false,
                                             const std::wstring& name = L"");
 
     //
@@ -5121,6 +5159,14 @@ namespace CNTK
     protected:
         Evaluator(const FunctionPtr& evaluationFunction, const std::vector<ProgressWriterPtr>& progressWriters = {}, bool initializeCombined = true);
 
+        void SetCommunicator(DistributedCommunicatorPtr communicator)
+        {
+            if (m_communicator != nullptr)
+                LogicError("Communicator has already been initialized.");
+
+            m_communicator = communicator;
+        }
+
         // Helper functions.
         std::vector<Variable> GetCombinedEvalFunctionArgs() const;
         static size_t GetSampleCount(const Variable& var, const ValuePtr& value);
@@ -5147,6 +5193,7 @@ namespace CNTK
         const AccumulatorPtr m_aggregatedTestEvalCriterionValue;
         Variable             m_testSampleCountVar;
         FunctionPtr          m_combinedEvalFunction;
+        DistributedCommunicatorPtr m_communicator;
     };
 
     ///
