@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Anaconda|x64">
+      <Configuration>Release_Anaconda</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release_NoOpt|x64">
       <Configuration>Release_NoOpt</Configuration>
       <Platform>x64</Platform>
@@ -73,8 +77,8 @@
     <PostBuildEvent>
       <Command>
         if "$(HasOpenCv)" == "true" xcopy /I /D /Y "$(OpenCvBinPath)\$(OpenCvWorld).dll" "$(TargetDir)"
-        if "$(UseZip)" == "true" xcopy /I /D /Y "$(ZLIB_PATH)\bin\zip.dll" "$(TargetDir)"
-        if "$(UseZip)" == "true" xcopy /I /D /Y "$(ZLIB_PATH)\bin\zlib.dll" "$(TargetDir)"
+        if "$(UseZip)" == "true" if not "$(AnacondaBuild)" == "true" xcopy /I /D /Y "$(ZLIB_PATH)\bin\zip.dll" "$(TargetDir)"
+        if "$(UseZip)" == "true" if not "$(AnacondaBuild)" == "true" xcopy /I /D /Y "$(ZLIB_PATH)\bin\zlib.dll" "$(TargetDir)"
       </Command>
       <Message>Copying dependencies</Message>
     </PostBuildEvent>

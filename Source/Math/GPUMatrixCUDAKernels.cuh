@@ -28,6 +28,7 @@
 #pragma warning(disable : 4201) // nonstandard extension used: nameless struct/union
 #pragma warning(disable : 4458) // declaration of 'identifier' hides class member
 #pragma warning(disable : 4515) // 'namespace': namespace uses itself
+#pragma warning(disable : 4706) // Newer CUB versions have assignment in conditional expressions
 #endif
 #include <cub/cub.cuh>
 #ifdef _MSC_VER

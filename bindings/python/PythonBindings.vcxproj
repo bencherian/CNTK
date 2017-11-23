@@ -5,6 +5,10 @@
       <Configuration>Debug</Configuration>
       <Platform>x64</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="Release_Anaconda|x64">
+      <Configuration>Release_Anaconda</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="Release_NoOpt|x64">
       <Configuration>Release_NoOpt</Configuration>
       <Platform>x64</Platform>
@@ -40,7 +44,12 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup>
+  <PropertyGroup Condition="$(AnacondaBuild)">
+    <NMakeBuildCommandLine>.\anaconda-vsbuild.bat "$(OutDir)" "$(DebugBuild)" "$(GpuBuild)" "$(CntkComponentVersion)" "$(SWIG_PATH)" "$(PY_VER)"</NMakeBuildCommandLine>
+    <NMakeOutput>dist/pythonwheel</NMakeOutput>
+    <NMakeCleanCommandLine>rmdir /s /q build</NMakeCleanCommandLine>
+  </PropertyGroup>
+  <PropertyGroup Condition="!$(AnacondaBuild)">
     <NMakeBuildCommandLine>.\vsbuild.bat "$(OutDir)" "$(DebugBuild)" "$(GpuBuild)" "$(CntkComponentVersion)" "$(SWIG_PATH)" "$(CNTK_PY_VERSIONS)" "$(CNTK_PY27_PATH)" "$(CNTK_PY34_PATH)" "$(CNTK_PY35_PATH)" "$(CNTK_PY36_PATH)"</NMakeBuildCommandLine>
     <NMakeOutput>dist/pythonwheel</NMakeOutput>
     <NMakeCleanCommandLine>rmdir /s /q build</NMakeCleanCommandLine>
@@ -49,6 +58,7 @@
     <Text Include="vsbuild.bat" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="anaconda-vsbuild.bat" />
     <None Include="build.bat" />
     <None Include="cntk\axis.py" />
     <None Include="cntk\cntk_py.i" />

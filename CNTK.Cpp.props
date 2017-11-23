@@ -18,7 +18,7 @@
     <NvmlDll Condition="Exists('c:\local\bindrop\NVSMI\nvml.dll')">c:\local\bindrop\NVSMI\nvml.dll</NvmlDll>
 
     <HasOpenCv>false</HasOpenCv>
-    <HasOpenCv Condition="Exists('$(OPENCV_PATH)') Or Exists('$(OPENCV_PATH_V31)')">true</HasOpenCv>
+    <HasOpenCv Condition="Exists('$(OPENCV_PATH)') Or Exists('$(OPENCV_PATH_V31)') Or Exists('$(OPENCV_PATH_V32)') Or Exists('$(OPENCV_PATH_V33)')">true</HasOpenCv>
     
     <HasProtobuf>false</HasProtobuf>
     <HasProtobuf Condition="Exists('$(PROTOBUF_PATH)')">true</HasProtobuf>
@@ -36,7 +36,17 @@
     <IsUWP Condition="'$(Configuration)'=='Debug_UWP' Or '$(Configuration)'=='Release_UWP'">true</IsUWP>
     <OutputSuffix Condition="!$(IsUWP)"/>
 
+    <AnacondaBuild>false</AnacondaBuild>
+    <AnacondaBuild Condition="'$(Configuration)'=='Release_Anaconda' Or '$(Configuration)'=='Debug_Anaconda'">true</AnacondaBuild>
+
   </PropertyGroup>
+
+  <PropertyGroup Condition="$(AnacondaBuild) And Exists('$(LIBRARY_PREFIX)')">
+    <HasProtobuf>true</HasProtobuf>
+    <HasBoost>true</HasBoost>
+    <UseZip>true</UseZip>
+  </PropertyGroup>
+
 
   <PropertyGroup Condition="$(IsUWP)">
     <MathLibrary>OpenBLAS</MathLibrary>
@@ -65,21 +75,42 @@
 
   <PropertyGroup Condition="!$(IsUWP)">
     <MathLibrary>MKL</MathLibrary>
-    <MathIncludePath>$(MKLML_PATH)\include</MathIncludePath>
-    <MathDefine>USE_MKL</MathDefine>
-    <!-- Only non-UWP configurations consume PerformanceProfiler -->
     <ReaderLibs>Cntk.PerformanceProfiler-$(CntkComponentVersion).lib;$(ReaderLibs)</ReaderLibs>
-    <MathLibraryName>MKL-ML Library</MathLibraryName>
+  </PropertyGroup>  
+
+  <PropertyGroup Condition="!$(IsUWP) And !$(AnacondaBuild)">
+    <MathIncludePath>$(MKLML_PATH)\include</MathIncludePath>
     <MathLibraryPath>$(MKLML_PATH)\lib</MathLibraryPath>
+    <MathDefine>USE_MKL</MathDefine>
+    <MathLibraryName>MKL-ML Library</MathLibraryName>
     <MathLinkLibrary>mklml.lib</MathLinkLibrary>
     <MathDelayLoad>mklml.dll</MathDelayLoad>
+    <!-- Only non-UWP configurations consume PerformanceProfiler -->
     <MathPostBuildCopyPattern>$(MathLibraryPath)\*.dll</MathPostBuildCopyPattern>
     <UnitTestDlls>$(OutDir)mklml.lib;$(OutDir)libiomp5md.dll;</UnitTestDlls>
   </PropertyGroup>
-  <PropertyGroup Condition="$(UseZip)">
+
+  <PropertyGroup Condition="$(AnacondaBuild)">
+    <MathLibraryName>SDL MKL for Anaconda</MathLibraryName>
+    <MathIncludePath>$(LIBRARY_INC)</MathIncludePath>
+    <MathLibraryPath>$(LIBRARY_LIB)</MathLibraryPath>
+    <MathDefine>USE_MKL</MathDefine>
+    <MathLinkLibrary>mkl_rt.lib</MathLinkLibrary>
+    <MathDelayLoad>mkl_rt.dll</MathDelayLoad>
+    <MathPostBuildCopyPattern />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$(UseZip) and !$(AnacondaBuild)">
     <ZipInclude>$(ZLIB_PATH)\include;$(ZLIB_PATH)\lib\libzip\include;</ZipInclude>
     <ZipDefine>USE_ZIP</ZipDefine>
     <ZipLibPath>$(ZLIB_PATH)\lib;</ZipLibPath>
+    <ZipLibs>zlib.lib;zip.lib;</ZipLibs>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="$(UseZip) and $(AnacondaBuild)">
+    <ZipInclude>$(LIBRARY_INC);$(LIBRARY_PREFIX)\lib\libzip\include;</ZipInclude>
+    <ZipDefine>USE_ZIP</ZipDefine>
+    <ZipLibPath>$(LIBRARY_LIB)</ZipLibPath>
     <ZipLibs>zlib.lib;zip.lib;</ZipLibs>
   </PropertyGroup>
 
@@ -91,6 +122,16 @@
   <PropertyGroup Condition="Exists('$(OPENCV_PATH_V31)')">
     <OpenCvPath>$(OPENCV_PATH_V31)</OpenCvPath>
     <OpenCvVersion>310</OpenCvVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="Exists('$(OPENCV_PATH_V32)')">
+    <OpenCvPath>$(OPENCV_PATH_V32)</OpenCvPath>
+    <OpenCvVersion>320</OpenCvVersion>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="Exists('$(OPENCV_PATH_V33)')">
+    <OpenCvPath>$(OPENCV_PATH_V33)</OpenCvPath>
+    <OpenCvVersion>330</OpenCvVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(HasOpenCv)">
