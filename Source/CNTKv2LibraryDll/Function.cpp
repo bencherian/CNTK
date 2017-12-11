@@ -1287,6 +1287,40 @@ namespace CNTK
         return UnaryOp(PrimitiveOpType::Hardmax, operand, Dictionary(), name);
     }
 
+    FunctionPtr TopK(const Variable& operand, size_t k, const std::wstring& name)
+    {
+        auto additionalProperties = Dictionary();
+        additionalProperties[PrimitiveFunction::AttributeNameAxis] = Axis(0);
+        additionalProperties[PrimitiveFunction::AttributeNameNumItems] = k;
+        return UnaryOp(PrimitiveOpType::TopK, operand, std::move(additionalProperties), name);
+    }
+
+
+    FunctionPtr TopK(const Variable& operand, size_t k, const Axis& axis, const std::wstring& name)
+    {
+        if (!axis.IsStaticAxis())
+            LogicError("TopK operation only supports a single static axis.");
+
+        if (axis.StaticAxisIndex() == 0)
+            return TopK(operand, k, name);
+        else
+        {
+            auto additionalProperties = Dictionary();
+            additionalProperties[PrimitiveFunction::AttributeNameAxis] = axis;
+            additionalProperties[PrimitiveFunction::AttributeNameNumItems] = k;
+
+            auto operandPlaceholder = PlaceholderVariable();
+            auto firstAxis = Axis(0);
+            auto swapped = TransposeAxes(operandPlaceholder, firstAxis, axis);
+            auto topkSwapped = TopK(swapped, k, name);
+            auto outputs = topkSwapped->Outputs();
+            auto topkValues = TransposeAxes(outputs[0], firstAxis, axis);
+            auto topkIndices = TransposeAxes(outputs[1], firstAxis, axis);
+            auto result = Combine({ topkValues , topkIndices });
+            return AsBlock(std::move(result), { { operandPlaceholder, operand } }, std::move(additionalProperties), L"TopK", name);
+        }
+    }
+
     FunctionPtr TransposeAxes(const Variable& operand, const Axis& axis1, const Axis& axis2, const std::wstring& name)
     {
         auto additionalProperties = Dictionary();
@@ -1669,7 +1703,7 @@ namespace CNTK
         return AsComposite(MakeSharedObject<PrimitiveFunction>(PrimitiveOpType::Logistic, operands, Dictionary(), name), name);
     }
 
-    CNTK_API FunctionPtr NCELoss(const Variable& weights, const Variable& biases, const Variable& inputs, const Variable& labels, const Constant& noiseWeights, size_t numSamples, bool allowDuplicates, unsigned long seed, const std::wstring& name)
+    FunctionPtr NCELoss(const Variable& weights, const Variable& biases, const Variable& inputs, const Variable& labels, const Constant& noiseWeights, size_t numSamples, bool allowDuplicates, unsigned long seed, const std::wstring& name)
     {
         auto inputsPlaceholder = PlaceholderVariable(L"inputs");
         auto labelsPlaceholder = PlaceholderVariable(L"labels");
@@ -1768,6 +1802,56 @@ namespace CNTK
         auto loss = lossOnPositives + lossOnNegatives;
 
         return AsBlock(std::move(loss), { { inputsPlaceholder, inputs }, { labelsPlaceholder, labels} }, L"NCE", name);
+    }
+
+    FunctionPtr DepthToSpace(const Variable& input, size_t blockSize, const std::wstring& name)
+    {
+        auto additionalProperties = Dictionary();
+        additionalProperties[PrimitiveFunction::AttributeNameBlockSize] = blockSize;
+
+        auto inputPlaceholder = PlaceholderVariable(L"input");
+
+        if (!input.IsPlaceholder())
+        {
+            NDShape inputShape = input.Shape();
+            if (inputShape.Rank() != 3)
+                LogicError("DepthToSpace: Input operand (shape: %S) must be a 3-dimensional tensor, e.g. a 2D image with channels.", inputShape.AsString().c_str());
+            if (inputShape[2] % (blockSize*blockSize) != 0)
+                LogicError("DepthToSpace: Number of channels in the operand (%zu) must be divisible by (blocksize x blocksize), i.e., (%zu x %zu).", inputShape[2], blockSize, blockSize);
+        }
+
+        FunctionPtr inputView = Reshape(inputPlaceholder, { blockSize, blockSize, NDShape::InferredDimension }, Axis(2), Axis(3));
+        std::vector<Axis> axisShufflePermutation({ Axis(2), Axis(0), Axis(3), Axis(1), Axis(4) });
+        auto shuffleOut = Transpose(inputView, axisShufflePermutation);
+        auto merge23Out = Reshape(shuffleOut, { NDShape::InferredDimension }, Axis(2), Axis(4));
+        auto merge01Out = Reshape(merge23Out, { NDShape::InferredDimension }, Axis(0), Axis(2));
+
+        return AsBlock(std::move(merge01Out), { { inputPlaceholder, input } }, std::move(additionalProperties), L"DepthToSpace", name);
+    }
+
+    FunctionPtr SpaceToDepth(const Variable& input, size_t blockSize, const std::wstring& name)
+    {
+        auto additionalProperties = Dictionary();
+        additionalProperties[PrimitiveFunction::AttributeNameBlockSize] = blockSize;
+
+        auto inputPlaceholder = PlaceholderVariable(L"input");
+
+        if (!input.IsPlaceholder())
+        {
+            NDShape inputShape = input.Shape();
+            if (inputShape.Rank() != 3)
+                LogicError("SpaceToDepth: Input operand (shape: %S) must be a 3-dimensional tensor, e.g. a 2D image with channels.", inputShape.AsString().c_str());
+            if ((inputShape[0] % blockSize != 0) || (inputShape[1] % blockSize != 0))
+                LogicError("SpaceToDepth: All spatial dimensions in the operand (%zu x %zu) must be divisible by blocksize (%zu).", inputShape[0], inputShape[1], blockSize);
+        }
+
+        FunctionPtr reshape01out = Reshape(inputPlaceholder, { blockSize, NDShape::InferredDimension }, Axis(0), Axis(1));
+        FunctionPtr reshape23out = Reshape(reshape01out, { blockSize, NDShape::InferredDimension }, Axis(2), Axis(3));
+        std::vector<Axis> axisShufflePermutation({ Axis(1), Axis(3), Axis(0), Axis(2), Axis(4) });
+        auto shuffleOut = Transpose(reshape23out, axisShufflePermutation);
+        auto merge234Out = Reshape(shuffleOut, { NDShape::InferredDimension }, Axis(2), Axis::EndStaticAxis());
+
+        return AsBlock(std::move(merge234Out), { { inputPlaceholder, input } }, std::move(additionalProperties), L"SpaceToDepth", name);
     }
 
     FunctionPtr LambdaRank(const Variable& prediction, const Variable& gains, const Variable& groupId, const std::wstring& name)
@@ -2807,21 +2891,25 @@ namespace CNTK
             auto filterShape = convolutionMap.Shape();
             auto filterRank = static_cast<int>(filterShape.Rank());
             auto inputRank = static_cast<int>(operand.Shape().Rank());
-            if (filterShape[filterRank - 1] % groups)
-                LogicError("groups: number of input channels must be divisble by groups.");
-            if (filterShape[filterRank - 2] % groups)
+            auto M = filterShape[filterRank - 1]; // Number of output channels.
+            auto C = operand.Shape()[inputRank - 1]; // Number of input channels in operand.
+            auto kC = filterShape[filterRank - 2]; // Number of input channels in kernel.
+            if (M % groups)
                 LogicError("groups: number of output channels must be divisble by groups.");
+            if (C != (kC * groups))
+                LogicError("groups: number of input channels (C) must be equal to number of input kernel channels (kC) * groups (G).");
 
             auto operandPlaceholder = PlaceholderVariable();
             std::vector<Variable> opsOutputVector(groups);
-            auto outputChannelStepSize = static_cast<int>(filterShape[filterRank - 1] / groups);
-            auto inputChannelStepSize = static_cast<int>(filterShape[filterRank - 2] / groups);
+            auto outputChannelStepSize = static_cast<int>(M / groups);
+            auto inputChannelStepSize = static_cast<int>(C / groups); 
+            assert(inputChannelStepSize == static_cast<int>(kC));
             for (int i = 0; i < groups; ++i)
             {
-                auto groupConvMap = Slice(convolutionMap, { Axis(filterRank - 1), Axis(filterRank - 2) }, { i*outputChannelStepSize, i*inputChannelStepSize },
-                { (i + 1)*outputChannelStepSize, (i + 1)*inputChannelStepSize });
+                auto groupConvMap = Slice(convolutionMap, { Axis(filterRank - 1) }, { i*outputChannelStepSize },
+                            { (i + 1)*outputChannelStepSize });
                 auto groupOperand = Slice(operandPlaceholder, { Axis(inputRank - 1) }, { i*inputChannelStepSize },
-                { (i + 1)*inputChannelStepSize });
+                            { (i + 1)*inputChannelStepSize });
                 opsOutputVector[i] = Internal::Convolution(groupConvMap, groupOperand, strides, sharing, autoPadding, dilation,
                                                            false, { 0 }, maxTempMemSizeInSamples, name)->Output();
             }
