@@ -462,13 +462,13 @@ def test_max_sweeps(tmpdir):
         mb = mb_source.next_minibatch(5, input_map)
 
         assert 'features' in mb
-        assert mb['features'].num_samples == 5
+        assert mb['features'].num_samples == 4
         assert mb['features'].end_of_sweep
 
     mb = mb_source.next_minibatch(5, input_map)
 
     assert 'features' in mb
-    assert mb['features'].num_samples == 2
+    assert mb['features'].num_samples == 4
     assert mb['features'].end_of_sweep
 
     mb = mb_source.next_minibatch(1, input_map)
@@ -486,13 +486,13 @@ def test_max_samples_over_several_sweeps(tmpdir):
         mb = mb_source.next_minibatch(5, input_map)
 
         assert 'features' in mb
-        assert mb['features'].num_samples == 5
+        assert mb['features'].num_samples == 4
         assert mb['features'].end_of_sweep
 
     mb = mb_source.next_minibatch(5, input_map)
 
     assert 'features' in mb
-    assert mb['features'].num_samples == 1
+    assert mb['features'].num_samples == 3
     assert not mb['features'].end_of_sweep
 
     mb = mb_source.next_minibatch(1, input_map)
