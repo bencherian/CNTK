@@ -1,0 +1,63 @@
+{% set version="2.4" %}
+package:
+  name: cntk
+  version: {{ version }}
+
+source:
+  git_url: ../
+  git_rev: release/{{- version -}}
+
+
+build:
+  script_env:
+    - CUDA_PATH # Required to grab headers
+    - CUDA_PATH_V9_1 # Required to grab headers
+    - OPENCV_PATH_V34 # No readily available conda package
+    - PROTOBUF_PATH # Static library
+
+requirements:
+  build:
+    - vs2017_win-64 15.4.* # Must use 15.4 (Toolset version 14.11) for CUDA compatibility
+  host:
+    - numpy
+    - mkl-devel >=2018
+    - mkl-dnn 0.12.*
+    - libzip
+    - cublas 9.1.*
+    - cudart 9.1.*
+    - cusparse 9.1.*
+    - curand 9.1.*
+    - cudnn 7.0.*
+    - cub 1.7.*
+    - scipy
+    - setuptools
+    - pip
+    - python
+    - zlib
+    - swig
+    - boost
+
+  run:
+    - numpy
+    - {{ pin_compatible('mkl', min_pin="x.x") }}
+    - {{ pin_compatible('mkl-dnn', min_pin="x.x", max_pin="x.x") }}
+    - {{ pin_compatible('cublas') }}
+    - {{ pin_compatible('cusparse') }}
+    - {{ pin_compatible('curand') }}
+    - {{ pin_compatible('cudart') }}
+    - {{ pin_compatible('cudnn') }}
+    - scipy
+    - python
+    - {{ pin_compatible('libzip') }}
+    - {{ pin_compatible('zlib') }}
+    - pip
+
+test:
+  requires:
+    - pytest
+    - numpy < 1.14
+    - pillow
+
+about:
+  summary: Microsoft Cognitive Toolkit. (Custom build.)
+  license: MIT-like

@@ -23,7 +23,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup Condition="exists('$(HalideLibPath)')">
-    <ClCompile Include="BinaryConvolutionLib.cpp"/>
+    <ClCompile Include="BinaryConvolutionLib.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="BinaryConvolveOp.h" />
@@ -62,13 +62,20 @@
     <LinkIncremental>false</LinkIncremental>
     <TargetName>Cntk.BinaryConvolution-$(CntkComponentVersion)</TargetName>
   </PropertyGroup>
+  <PropertyGroup>
+    <IncludePath>$(HalideInclude);$(IncludePath)</IncludePath>
+  </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)Source\CNTKv2LibraryDll\API;$(HalideInclude)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)Source\CNTKv2LibraryDll\API</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(OutDir);$(HalideLibPath);$(SolutionDir)$(Platform)\$(Configuration)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Message>Copying Halide Dependencies</Message>
+      <Command>xcopy /I /D /Y "$(HalideLibPath)\Halide.dll" "$(TargetDir)"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="$(DebugBuild)">
     <ClCompile>

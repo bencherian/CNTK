@@ -3,13 +3,14 @@
   <Import Project="$(SolutionDir)\CNTK.Common.props" />
   <PropertyGroup>
     <CudaVersion />
+    <CudaVersion Condition="Exists('$(CUDA_PATH_V9_1)') And '$(CudaVersion)' == ''">9.1</CudaVersion>
     <CudaVersion Condition="Exists('$(CUDA_PATH_V9_0)') And '$(CudaVersion)' == ''">9.0</CudaVersion>
 
     <NvmlDll>%ProgramW6432%\NVIDIA Corporation\NVSMI\nvml.dll</NvmlDll>
     <NvmlDll Condition="Exists('c:\local\nvsmi9\NVSMI\nvml.dll')">c:\local\nvsmi9\NVSMI\nvml.dll</NvmlDll>
 
     <HasOpenCv>false</HasOpenCv>
-    <HasOpenCv Condition="Exists('$(OPENCV_PATH)') Or Exists('$(OPENCV_PATH_V31)')">true</HasOpenCv>
+    <HasOpenCv Condition="Exists('$(OPENCV_PATH)') Or Exists('$(OPENCV_PATH_V31)') Or Exists('$(OPENCV_PATH_V32)') Or Exists('$(OPENCV_PATH_V33)') Or Exists('$(OPENCV_PATH_V34)')">true</HasOpenCv>
     
     <HasProtobuf>false</HasProtobuf>
     <HasProtobuf Condition="Exists('$(PROTOBUF_PATH)')">true</HasProtobuf>
@@ -19,6 +20,8 @@
 
     <UseZip>false</UseZip>
     <UseZip Condition="Exists('$(ZLIB_PATH)')">true</UseZip>
+    <CondaBuild>false</CondaBuild>
+    <CondaBuild Condition="Exists('$(CONDA_BUILD)')">true</CondaBuild>
 
     <HasMultiverso>false</HasMultiverso>
     <HasMultiverso Condition="Exists('$(SolutionDir)\Source\Multiverso\include\multiverso')">true</HasMultiverso>
@@ -61,15 +64,24 @@
     <!-- Only non-UWP configurations consume PerformanceProfiler -->
     <ReaderLibs>Cntk.PerformanceProfiler-$(CntkComponentVersion).lib;$(ReaderLibs)</ReaderLibs>
     <MathLibraryName>MKL Library</MathLibraryName>
-    <MathLibraryPath>$(MKL_PATH)\lib</MathLibraryPath>
-    <MathLinkLibrary>mklml.lib</MathLinkLibrary>
-    <MathDelayLoad>mklml.dll</MathDelayLoad>
-    <MathPostBuildCopyPattern>$(MathLibraryPath)\*.dll</MathPostBuildCopyPattern>
+    <MathLibraryPath Condition="!$(CondaBuild)">$(MKL_PATH)\lib</MathLibraryPath>
+    <MathLibraryPath Condition="$(CondaBuild)">$(MKL_PATH)\lib;$(MKL_PATH)\bin</MathLibraryPath>
+    <MathLinkLibrary Condition="!$(CondaBuild)">mklml.lib</MathLinkLibrary>
+    <MathLinkLibrary Condition="$(CondaBuild)">mkl_rt.lib</MathLinkLibrary>
+    <MathDelayLoad Condition="!$(CondaBuild)">mklml.dll</MathDelayLoad>
+    <MathDelayLoad Condition="$(CondaBuild)">mkl_rt.dll</MathDelayLoad>
+    <MathPostBuildCopyPattern Condition="!$(CondaBuild)">$(MathLibraryPath)\*.dll</MathPostBuildCopyPattern>
     <HasMklDnn>false</HasMklDnn>
     <HasMklDnn Condition="Exists('$(MKL_PATH)\include\mkldnn.h')">true</HasMklDnn>
     <MathDefine Condition="$(HasMklDnn)">$(MathDefine);USE_MKLDNN</MathDefine>
     <MathLinkLibrary Condition="$(HasMklDnn)">$(MathLinkLibrary);mkldnn.lib</MathLinkLibrary>
     <MathDelayLoad Condition="$(HasMklDnn)">$(MathDelayLoad);mkldnn.dll</MathDelayLoad>
+    <!-- Use Intel OpenMP instead of VC OpenMP -->
+    <Link>
+      <IgnoreSpecificDefaultLibraries>vcomp</IgnoreSpecificDefaultLibraries>
+      <AdditionalLibraryDirectories>$(MathLibraryPath)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>libiomp5md.lib</AdditionalDependencies>
+    </Link>
   </PropertyGroup>
   <PropertyGroup Condition="$(UseZip)">
     <ZipInclude>$(ZLIB_PATH)\include;$(ZLIB_PATH)\lib\libzip\include;</ZipInclude>
@@ -86,6 +98,21 @@
   <PropertyGroup Condition="Exists('$(OPENCV_PATH_V31)')">
     <OpenCvPath>$(OPENCV_PATH_V31)</OpenCvPath>
     <OpenCvVersion>310</OpenCvVersion>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="Exists('$(OPENCV_PATH_V32)')">
+    <OpenCvPath>$(OPENCV_PATH_V32)</OpenCvPath>
+    <OpenCvVersion>320</OpenCvVersion>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="Exists('$(OPENCV_PATH_V33)')">
+    <OpenCvPath>$(OPENCV_PATH_V33)</OpenCvPath>
+    <OpenCvVersion>330</OpenCvVersion>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="Exists('$(OPENCV_PATH_V34)')">
+    <OpenCvPath>$(OPENCV_PATH_V34)</OpenCvPath>
+    <OpenCvVersion>340</OpenCvVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="$(HasOpenCv)">
@@ -109,6 +136,15 @@
     <CudaRuntimeDll>cudart64_90.dll</CudaRuntimeDll>
     <CudaDlls>cublas64_90.dll;cusparse64_90.dll;curand64_90.dll;$(CudaRuntimeDll)</CudaDlls>
 
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(CudaVersion)' == '9.1'">
+    <CudaPath>$(CUDA_PATH_V9_1)</CudaPath>
+    <CudaRuntimeDll>cudart64_91.dll</CudaRuntimeDll>
+    <CudaDlls>cublas64_91.dll;cusparse64_91.dll;curand64_91.dll;$(CudaRuntimeDll)</CudaDlls>
+
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="$(GpuBuild)">
 <!-- Use NvidiaCompute to define nvcc target architectures (will generate code to support them all, i.e. fat-binary, in release mode)
     In debug mode we only include cubin/PTX for 30 and rely on PTX / JIT to generate the required native cubin format
     http://docs.nvidia.com/cuda/pascal-compatibility-guide/index.html#building-applications-with-pascal-support -->
@@ -117,9 +153,7 @@
 
     <NvidiaCompute Condition="$(ReleaseBuild)">$(CNTK_CUDA_CODEGEN_RELEASE)</NvidiaCompute>
     <NvidiaCompute Condition="$(ReleaseBuild) And '$(NvidiaCompute)'==''">compute_30,sm_30;compute_35,sm_35;compute_50,sm_50;compute_60,sm_60;compute_61,sm_61;compute_70,sm_70</NvidiaCompute>
-  </PropertyGroup>
-
-  <PropertyGroup>
+    
     <CudaLibs>cudart.lib;cublas.lib;cusparse.lib;curand.lib</CudaLibs>
     <CudaInclude>$(CudaPath)\include</CudaInclude>
     <CudaLibPath>$(CudaPath)\lib\$(Platform)</CudaLibPath>
@@ -133,8 +167,9 @@
 
   <PropertyGroup Condition="Exists('$(HALIDE_PATH)')">
     <HalidePath>$(HALIDE_PATH)</HalidePath>
-    <HalideInclude>$(HALIDE_PATH)\include;</HalideInclude>
-    <HalideLibPath>$(HALIDE_PATH)\Release;</HalideLibPath>
+    <HalideInclude>$(HALIDE_PATH)\include</HalideInclude>
+    <HalideLibPath Condition="$(ReleaseBuild)">$(HALIDE_PATH)\Release</HalideLibPath>
+    <HalideLibPath Condition="$(DebugBuild)">$(HALIDE_PATH)\Debug</HalideLibPath>
     <HalideLib>halide.lib</HalideLib>
   </PropertyGroup>
  
@@ -153,6 +188,7 @@
       <!-- UWP does not use MPI -->
       <PreprocessorDefinitions Condition="!$(IsUWP)">%(PreprocessorDefinitions);HAS_MPI=1</PreprocessorDefinitions>
       <PreprocessorDefinitions Condition="'$(CudaVersion)' == '9.0'">%(PreprocessorDefinitions);CUDA_NO_HALF;__CUDA_NO_HALF_OPERATORS__</PreprocessorDefinitions>
+      <PreprocessorDefinitions Condition="'$(CudaVersion)' == '9.1'">%(PreprocessorDefinitions);CUDA_NO_HALF;__CUDA_NO_HALF_OPERATORS__</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
 
