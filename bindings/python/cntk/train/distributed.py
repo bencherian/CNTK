@@ -13,7 +13,11 @@ from cntk.internal import typemap
 import platform
 import ctypes
 if platform.system() == 'Linux':
-    ctypes.CDLL("libmpi.so.12", mode=ctypes.RTLD_GLOBAL)
+    try:
+        ctypes.CDLL("libmpi.so.12", mode=ctypes.RTLD_GLOBAL)
+    except OSError:  # Check for unversioned symlink if not using original MPI version
+        ctypes.CDLL("libmpi.so", mode=ctypes.RTLD_GLOBAL)
+
 
 __doc__= '''\
 Distributed learners manage learners in distributed environment.

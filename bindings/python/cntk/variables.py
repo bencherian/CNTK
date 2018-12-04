@@ -255,7 +255,7 @@ class VariableMixin(object):
             '''
             # TODO: it would be great if in a future version we could recognize and support Python 3.5 typing.Sequence
             import sys
-            if sys.version_info >= (3,5):
+            if sys.version_info >= (3,5) and sys.version_info < (3,7):
                 from typing import GenericMeta
                 if isinstance(the_type, GenericMeta):
                     raise TypeError("Python's typing.Sequence is not a valid CNTK type; use cntk.layers.typing.Sequence instead")

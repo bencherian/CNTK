@@ -52,8 +52,8 @@ def cntk_check_distro_info():
         __my_distro__ = __my_distro__.lower()
         __my_distro_ver__ = __my_distro_ver__.lower()
 
-        if __my_distro__ != 'ubuntu' or __my_distro_ver__ != '16.04':
-            warnings.warn('Unsupported Linux distribution (%s-%s). CNTK supports Ubuntu 16.04 and above, only.' % (__my_distro__, __my_distro_ver__))
+        if __my_distro__ != 'ubuntu' or __my_distro_ver__ != '18.04':
+            warnings.warn('Unsupported Linux distribution (%s-%s). This CNTK build supports Ubuntu 18.04 only.' % (__my_distro__, __my_distro_ver__))
     else:
         warnings.warn('Unsupported platform (%s). CNTK supports Linux and Windows platforms, only.' % __my_system__)
 
@@ -68,8 +68,10 @@ def cntk_check_libs():
     WARNING_MSG_GPU_ONLY+='\nIf you intend to use CNTK without GPU support, you can ignore the (likely) GPU-specific warning!'
     WARNING_MSG_GPU_ONLY+='\n'+('#'*140)+'\n'
 
-    devnull = open(os.devnull, 'w')
     __my_system__ = platform.system().lower()
+    if __my_system__ == 'linux':
+        return
+    devnull = open(os.devnull, 'w')
     if __my_system__ == 'windows':
         if call(['where', 'libiomp5md*.dll'], stdout=devnull, stderr=devnull) != 0 or \
           call(['where', 'mklml*.dll'], stdout=devnull, stderr=devnull) != 0:
@@ -84,20 +86,4 @@ def cntk_check_libs():
             warnings.warn(WARNING_MSG_GPU_ONLY % ('GPU-Specific', 'https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-Windows-Python#optional-gpu-specific-packages'))
         if call(['where', 'opencv_world*.dll'], stdout=devnull, stderr=devnull) != 0:
             warnings.warn(WARNING_MSG % ('   OpenCV   ', 'https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-Windows-Python#optional-opencv'))
-    elif __my_system__ == 'linux':
-        if call('ldconfig -p | grep libmklml_intel*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libiomp5*.so*', shell=True, stdout=devnull, stderr=devnull) != 0:
-            warnings.warn(WARNING_MSG % ('    MKL     ', 'https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-Linux-Python#mkl'))
-        if call('ldconfig -p | grep libcudart*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libcublas*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libcurand*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libcusparse*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libcuda*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libnvidia-ml*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libcudnn*.so*', shell=True, stdout=devnull, stderr=devnull) != 0:
-            warnings.warn(WARNING_MSG_GPU_ONLY % ('GPU-Specific', 'https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-Linux-Python#optional-gpu-specific-packages'))
-        if call('ldconfig -p | grep libopencv_core*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libopencv_imgproc*.so*', shell=True, stdout=devnull, stderr=devnull) != 0 or \
-          call('ldconfig -p | grep libopencv_imgcodecs*.so*', shell=True, stdout=devnull, stderr=devnull) != 0:
-            warnings.warn(WARNING_MSG % ('   OpenCV   ', 'https://docs.microsoft.com/en-us/cognitive-toolkit/Setup-Linux-Python#optional-opencv'))
     devnull.close()
