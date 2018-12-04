@@ -810,6 +810,7 @@ namespace CNTK
 
         io::CodedInputStream codedInput(&input);
         codedInput.SetTotalBytesLimit(limit, limit);
+        codedInput.PushLimit(limit);
         return msg.ParseFromCodedStream(&codedInput) && codedInput.ConsumedEntireMessage();
     }
 
