@@ -18,7 +18,7 @@ BATCH_SIZE_PER_WORKER = 20
 
 def mpiexec_execute(script, mpiexec_params, params, timeout_seconds=TIMEOUT_SECONDS):
     cmd = ['mpiexec'] + mpiexec_params + ['python', script] + params
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, env=os.environ.copy())
     if sys.version_info[0] < 3:
         out = p.communicate()[0]
     else:

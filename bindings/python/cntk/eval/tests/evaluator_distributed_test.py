@@ -13,7 +13,7 @@ import cntk as C
 def mpiexec_execute(script, mpiexec_params):
     timeout_seconds = 300
     cmd = ['mpiexec'] + mpiexec_params + ['python', script]
-    p = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, env=os.environ.copy())
     if sys.version_info[0] < 3:
         out = p.communicate()[0]
     else:
