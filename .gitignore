@@ -9,6 +9,7 @@
 \#*
 .\#*
 .vscode
+.pytest_cache
 
 # Local build configuration
 Config.make
@@ -222,6 +223,7 @@ Tests/EndToEndTests/CNTKv2Python/Examples/models
 
 # Python bindings
 bindings/python/_cntk_py*.pyd
+bindings/python/*.so
 bindings/python/cntk.egg-info/
 bindings/python/cntk_gpu.egg-info/
 bindings/python/cntk/cntk_py.py
