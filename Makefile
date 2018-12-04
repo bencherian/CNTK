@@ -84,13 +84,13 @@ ifneq ($(HAS_MPI),0)
 CXX = $(MPI_PATH)/bin/mpic++
 endif
 
-SSE_FLAGS = -msse4.1 -mssse3
+SIMD_FLAGS = -msse4.1 -mssse3 -mavx2
 
 PROTOC = $(PROTOBUF_PATH)/bin/protoc
 
 # Settings for ARM64 architectures that use a crosscompiler on a host machine.
 #CXX = aarch64-linux-gnu-g++
-#SSE_FLAGS =
+#SIMD_FLAGS =
 
 SOURCEDIR:= Source
 GSL_PATH:=$(SOURCEDIR)/../external/gsl
@@ -104,7 +104,7 @@ INCLUDEPATH+=$(ONNX_REPO_PATH)
 # COMMON_FLAGS include settings that are passed both to NVCC and C++ compilers.
 COMMON_FLAGS:= $(COMMON_FLAGS) -DONNX_NAMESPACE=onnx -DONNX_ML=1 -DHAS_MPI=$(HAS_MPI) -D_POSIX_SOURCE -D_XOPEN_SOURCE=600 -D__USE_XOPEN2K -std=c++14 -DCUDA_NO_HALF -D__CUDA_NO_HALF_OPERATORS__
 CPPFLAGS:=
-CXXFLAGS:= $(SSE_FLAGS) $(CXXFLAGS) -fopenmp -fpermissive -fPIC -Werror -fcheck-new
+CXXFLAGS:= $(SIMD_FLAGS) $(CXXFLAGS) -liomp5 -fpermissive -fPIC -Werror -fcheck-new -fopenmp
 LIBPATH:=
 LIBS_LIST:=
 LDFLAGS:=
@@ -181,13 +181,16 @@ endif
 
 ifeq ("$(MATHLIB)","mkl")
   INCLUDEPATH += $(MKL_PATH)/include
-  # disable MKL-DNN until we pick up the fix for AMD cache size https://github.com/intel/mkl-dnn/commit/ccfbf83ab489b42f7452b6701498b07c28cdb502
-  #LIBS_LIST += m iomp5 pthread mklml_intel mkldnn
-  LIBS_LIST += m iomp5 pthread mklml_intel
+  LIBS_LIST += m iomp5 pthread
+  # Use mkl_rt for conda package
+  ifdef CONDA_BUILD
+    LIBS_LIST += mkl_rt mkldnn
+  else
+    LIBS_LIST += mklml_intel mkldnn
+  endif
   MKL_LIB_PATH := $(MKL_PATH)/lib
   LIBPATH += $(MKL_LIB_PATH)
-  #COMMON_FLAGS += -DUSE_MKL -DUSE_MKLDNN
-  COMMON_FLAGS += -DUSE_MKL
+  COMMON_FLAGS += -DUSE_MKL -DUSE_MKLDNN
 endif
 
 ifeq ($(CUDA_GDR),1)
@@ -617,6 +620,11 @@ $(CPP_EXTENSIBILITY_EXAMPLES_LIB): $(CPP_EXTENSIBILITY_EXAMPLES_LIBRARY_OBJ) | $
 ##############################################
 ifdef HALIDE_PATH
 INCLUDEPATH += $(HALIDE_PATH)/include
+ifdef CONDA_BUILD
+HALIDE_LIBPATH := $(HALIDE_PATH)/lib
+else
+HALIDE_LIBPATH := $(HALIDE_PATH)/bin
+endif
 BINARY_CONVOLUTION_LIBRARY_SRC =\
 	$(SOURCEDIR)/Extensibility/BinaryConvolutionLib/BinaryConvolutionLib.cpp \
 
@@ -631,7 +639,7 @@ $(BINARY_CONVOLUTION_LIB): $(BINARY_CONVOLUTION_LIBRARY_OBJ) | $(CNTKLIBRARY_LIB
 	@echo $(SEPARATOR)
 	@echo creating $@ for $(ARCH) with build type $(BUILDTYPE)
 	@mkdir -p $(dir $@)
-	$(CXX) $(LDFLAGS) -shared $(patsubst %,-L%, $(LIBDIR)) $(patsubst %,$(RPATH)%, $(LIBDIR) $(ORIGINDIR)) -o $@ $^ -l$(CNTKLIBRARY) $(HALIDE_PATH)/bin/libHalide.so
+	$(CXX) $(LDFLAGS) -shared $(patsubst %,-L%, $(LIBDIR)) $(patsubst %,$(RPATH)%, $(LIBDIR) $(ORIGINDIR)) -o $@ $^ -l$(CNTKLIBRARY) $(HALIDE_LIBPATH)/libHalide.so
 endif
 
 ##############################################
@@ -1493,6 +1501,7 @@ python: $(PYTHON_LIBS)
             py_paths[34]=$(PYTHON34_PATH); \
             py_paths[35]=$(PYTHON35_PATH); \
             py_paths[36]=$(PYTHON36_PATH); \
+            py_paths[37]=$(PYTHON37_PATH); \
             export LD_LIBRARY_PATH=$$LD_LIBRARY_PATH:$$(echo $(GDK_NVML_LIB_PATH) $(LIBPATH) | tr " " :); \
             ldd $$(find $(LIBDIR) -maxdepth 1 -type f -print) | grep "not found" && false; \
             export CNTK_VERSION=$(CNTK_VERSION); \

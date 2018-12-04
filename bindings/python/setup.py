@@ -106,14 +106,14 @@ if IS_WINDOWS:
     EXCLUDE_LIBS += ["cublas", "cudart", "curand", "cusparse"] # Cuda
     EXCLUDE_LIBS += ["cudnn"] # CUDNN
     EXCLUDE_LIBS += ["opencv_world"] # OpenCV
-    EXCLUDE_LIBS += ["mkldnn", "mklml", "libiomp5md"] # MKL + MKL-DNN
+    EXCLUDE_LIBS += ["mkldnn", "mklml", "libiomp5md", "mkl_rt"] # MKL + MKL-DNN
     EXCLUDE_LIBS += ["nvml"] # NVML (Nvidia driver)
 else:
     EXCLUDE_LIBS_SUFFIX = "[a-z0-9_\-\.]*.so[0-9\.]*"
     EXCLUDE_LIBS += ["libcudart", "libcublas", "libcurand", "libcusparse", "libcuda", "libnvidia-ml"] # CUDA
     EXCLUDE_LIBS += ["libcudnn"] # CUDNN
-    EXCLUDE_LIBS += ["libopencv_core", "libopencv_imgproc", "libopencv_imgcodecs"] # OpenCV
-    EXCLUDE_LIBS += ["libmklml_intel", "libiomp5", "libmkldnn"] # MKL
+    EXCLUDE_LIBS += ["libopencv_core", "libopencv_imgproc", "libopencv_imgcodecs", "libzip"] # OpenCV and other Images
+    EXCLUDE_LIBS += ["libmklml_intel", "libiomp5", "libmkldnn", "libmkl_rt"] # MKL
     EXCLUDE_LIBS += ["libnccl"] # NCCL
 
 if "--with-deps" in sys.argv:
