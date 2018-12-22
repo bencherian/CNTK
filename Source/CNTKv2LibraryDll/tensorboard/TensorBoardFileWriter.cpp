@@ -14,7 +14,7 @@
 #include <sstream>
 
 #pragma warning(push)
-#pragma warning(disable : 4244 4245)
+#pragma warning(disable : 4244 4245 4701)
 #include <boost/crc.hpp>
 #pragma warning(pop)
 

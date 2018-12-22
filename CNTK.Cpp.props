@@ -3,7 +3,7 @@
   <Import Project="$(SolutionDir)\CNTK.Common.props" />
   <PropertyGroup>
     <CudaVersion />
-    <CudaVersion Condition="Exists('$(CUDA_PATH_V10_0)') And '$(CudaVersion)' == ''">9.0</CudaVersion>
+    <CudaVersion Condition="Exists('$(CUDA_PATH_V10_0)') And '$(CudaVersion)' == ''">10.0</CudaVersion>
 
     <NvmlDll>%ProgramW6432%\NVIDIA Corporation\NVSMI\nvml.dll</NvmlDll>
     <NvmlDll Condition="Exists('c:\local\nvsmi9\NVSMI\nvml.dll')">c:\local\nvsmi9\NVSMI\nvml.dll</NvmlDll>
@@ -124,7 +124,7 @@
     <NvidiaCompute Condition="$(DebugBuild) And '$(NvidiaCompute)'==''">compute_50,sm_50</NvidiaCompute>
 
     <NvidiaCompute Condition="$(ReleaseBuild)">$(CNTK_CUDA_CODEGEN_RELEASE)</NvidiaCompute>
-    <NvidiaCompute Condition="$(ReleaseBuild) And '$(NvidiaCompute)'==''">compute_50,sm_50;compute_52,sm_52;compute_53,sm_53;compute_60,sm_60;compute_61,sm_61;compute_62,sm_62;compute_70,sm_70;compute_72,sm_72;compute_75,sm_75</NvidiaCompute>
+    <NvidiaCompute Condition="$(ReleaseBuild) And '$(NvidiaCompute)'==''">compute_50,sm_50;compute_52,sm_52;compute_60,sm_60;compute_61,sm_61;compute_70,sm_70;compute_75,sm_75</NvidiaCompute>
   </PropertyGroup>
 
   <PropertyGroup>
